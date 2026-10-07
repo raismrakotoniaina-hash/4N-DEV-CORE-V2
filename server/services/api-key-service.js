@@ -1,9 +1,5 @@
 import crypto from 'node:crypto';
-import {
-  createApiKeySecret,
-  createStoredApiKey,
-  verifyApiKey
-} from '../security/api-key.js';
+import { createApiKeySecret, createStoredApiKey, verifyApiKey } from '../security/api-key.js';
 
 export function createApiKey({ name, workspaceId, pepper }) {
   const generated = createApiKeySecret();
@@ -12,7 +8,6 @@ export function createApiKey({ name, workspaceId, pepper }) {
     name,
     workspaceId
   });
-
   return { record, secret: generated.secret };
 }
 
