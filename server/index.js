@@ -7,6 +7,10 @@ import createAuthRouter from './routes/auth.js';
 import { createDbPool } from './db/client.js';
 import { createDevelopersRepository } from './db/repositories/developers.js';
 import { createSessionsRepository } from './db/repositories/sessions.js';
+import { createApiKeyRepository } from './db/repositories/api-keys.js';
+import { createCreditsRepository } from './db/repositories/credits.js';
+import { createUsageRepository } from './db/repositories/usage.js';
+import { createCreditsService } from './services/credits-service.js';
 import { notFound, errorHandler } from './middleware/errors.js';
 
 const config = loadConfig();
@@ -32,7 +36,10 @@ app.get('/health', (_req, res) => {
 const db = createDbPool(config.databaseUrl);
 const repositories = db ? {
   developers: createDevelopersRepository(db),
-  sessions: createSessionsRepository(db)
+  sessions: createSessionsRepository(db),
+  apiKeys: createApiKeyRepository(db),
+  credits: createCreditsRepository(db),
+  usage: createUsageRepository(db)
 } : null;
 
 app.use('/api/auth', createAuthRouter({
@@ -42,9 +49,12 @@ app.use('/api/auth', createAuthRouter({
 }));
 
 const developmentApiKeyRecords = [];
+const creditsService = db ? createCreditsService(repositories.credits, repositories.usage) : null;
 app.use('/v1', createV1Router({
   apiKeyRecords: developmentApiKeyRecords,
-  apiKeyPepper: config.apiKeyPepper
+  apiKeyPepper: config.apiKeyPepper,
+  apiKeyRepository: repositories?.apiKeys,
+  creditsService
 }));
 
 app.use(notFound);
