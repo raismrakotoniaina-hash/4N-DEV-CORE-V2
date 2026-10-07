@@ -32,3 +32,5 @@ export function createV1Router({ apiKeyRecords, apiKeyPepper }) {
 
   return router;
 }
+
+export default createV1Router;
