@@ -5,6 +5,19 @@ export function createApiKeysRouter({ apiKeyRepository, apiKeyPepper, sessionMid
   const router = Router();
   router.use(sessionMiddleware);
 
+  router.get('/', async (req, res, next) => {
+    try {
+      const keys = await apiKeyRepository.listByWorkspace(req.workspace.id);
+      return res.json({
+        success: true,
+        data: { keys: keys.map((key) => ({ id: key.id, name: key.name, prefix: key.key_prefix, status: key.status, createdAt: key.created_at, revokedAt: key.revoked_at })) },
+        requestId: req.requestId
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   router.post('/', async (req, res, next) => {
     try {
       const name = String(req.body?.name || '').trim() || 'API key';
