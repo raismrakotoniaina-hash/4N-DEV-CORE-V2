@@ -1,7 +1,4 @@
-import {
-  parseBearerToken,
-  isValidApiKeyFormat
-} from '../security/api-key.js';
+import { parseBearerToken, isValidApiKeyFormat } from '../security/api-key.js';
 import { authenticateApiKey } from '../services/api-key-service.js';
 
 export function requireApiKey({ apiKeyRecords, pepper }) {
@@ -11,10 +8,7 @@ export function requireApiKey({ apiKeyRecords, pepper }) {
     if (!secret) {
       return res.status(401).json({
         success: false,
-        error: {
-          code: 'missing_api_key',
-          message: 'A Bearer API key is required.'
-        },
+        error: { code: 'missing_api_key', message: 'A Bearer API key is required.' },
         requestId: req.requestId
       });
     }
@@ -22,27 +16,17 @@ export function requireApiKey({ apiKeyRecords, pepper }) {
     if (!isValidApiKeyFormat(secret)) {
       return res.status(401).json({
         success: false,
-        error: {
-          code: 'invalid_api_key',
-          message: 'The API key format is invalid.'
-        },
+        error: { code: 'invalid_api_key', message: 'The API key format is invalid.' },
         requestId: req.requestId
       });
     }
 
-    const record = authenticateApiKey({
-      secret,
-      records: apiKeyRecords,
-      pepper
-    });
+    const record = authenticateApiKey({ secret, records: apiKeyRecords, pepper });
 
     if (!record) {
       return res.status(401).json({
         success: false,
-        error: {
-          code: 'invalid_api_key',
-          message: 'The API key is invalid or revoked.'
-        },
+        error: { code: 'invalid_api_key', message: 'The API key is invalid or revoked.' },
         requestId: req.requestId
       });
     }
