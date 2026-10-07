@@ -30,14 +30,20 @@ function App(){
  const [created,setCreated]=useState(false);
  const [toast,setToast]=useState('');
  const [dashboard,setDashboard]=useState(null);
- useEffect(()=>{api('/api/dashboard').then(setDashboard).catch(()=>{});},[]);
+ const [keys,setKeys]=useState([]);
+ const [loadingKeys,setLoadingKeys]=useState(false);
+ const [revealedSecret,setRevealedSecret]=useState('');
+ const [revealedName,setRevealedName]=useState('');
+ const loadKeys=async()=>{setLoadingKeys(true);try{const data=await api('/api/keys');setKeys(data.keys||[]);}catch(e){notify('Unable to load API keys');}finally{setLoadingKeys(false);}};
+ useEffect(()=>{api('/api/dashboard').then(setDashboard).catch(()=>{});loadKeys();},[]);
  const [search,setSearch]=useState(false);
- const key='4ndev_sk_live_••••••••••••••••••••••••';
+ const key=keys.find(k=>k.active)?.prefix||'4ndev_sk_live_';
 
  const go=(page)=>{setActive(page);setMobile(false);setProfile(false);};
  const notify=(msg)=>{setToast(msg);setTimeout(()=>setToast(''),2200);};
- const copyKey=async()=>{try{await navigator.clipboard.writeText('4ndev_sk_live_demo');notify('API key copied');}catch{notify('Copy unavailable on this device');}};
- const createKey=()=>{if(!keyName.trim())return;setCreated(true);setModal(false);notify('API key created in this demo workspace');setKeyName('');};
+ const copyKey=async(value=key)=>{try{await navigator.clipboard.writeText(value);notify('API key copied');}catch{notify('Copy unavailable on this device');}};
+ const createKey=async()=>{if(!keyName.trim())return;try{const data=await api('/api/keys',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:keyName.trim()})});setCreated(true);setModal(false);setKeyName('');setRevealedSecret(data.key.secret);setRevealedName(data.key.name);await loadKeys();notify('API key created');}catch(e){notify(e.message||'Unable to create API key');}};
+ const revokeKey=async(id)=>{try{await api('/api/keys/'+id+'/revoke',{method:'POST'});await loadKeys();notify('API key revoked');}catch(e){notify(e.message||'Unable to revoke API key');}};
 
  return <div className="app">
   <aside className={`sidebar ${open?'':'collapsed'} ${mobile?'mobile-open':''}`}>
@@ -61,6 +67,7 @@ function App(){
    </div>
   </main>
   {modal&&<div className="modal-backdrop" onClick={()=>setModal(false)}><div className="modal" onClick={e=>e.stopPropagation()}><div className="modal-head"><div><h3>Create API key</h3><p>Use a separate key for each application.</p></div><button className="icon-btn" onClick={()=>setModal(false)}><X/></button></div><label>Key name<input value={keyName} onChange={e=>setKeyName(e.target.value)} placeholder="e.g. My production app" autoFocus/></label><div className="warning"><ShieldCheck/><span>Store this credential securely. Never expose it in client-side code.</span></div><div className="modal-actions"><button className="secondary" onClick={()=>setModal(false)}>Cancel</button><button className="primary" disabled={!keyName.trim()} onClick={createKey}>Create key</button></div></div></div>}
+  {revealedSecret&&<div className="modal-backdrop"><div className="modal"><div className="modal-head"><div><h3>API key created</h3><p>{revealedName} · copy this secret now.</p></div><button className="icon-btn" onClick={()=>setRevealedSecret('')}><X/></button></div><div className="secret-box">{revealedSecret}</div><div className="warning"><ShieldCheck/><span>This secret is shown only once. Store it securely and never expose it in client-side code.</span></div><div className="modal-actions"><button className="primary" onClick={()=>copyKey(revealedSecret)}><Copy/> Copy secret</button><button className="secondary" onClick={()=>setRevealedSecret('')}>Done</button></div></div></div>}
   {toast&&<div className="toast">{toast}</div>}
  </div>
 }
@@ -75,7 +82,7 @@ function Overview({go,showKey,setShowKey,keyValue,copyKey,setModal,created}){ret
  <section className="card quick"><div><h3>Quick start</h3><p>Make your first API request in minutes.</p></div><div className="code"><span>Authorization:</span> Bearer <em>4ndev_sk_••••••••</em></div><button className="secondary" onClick={()=>go('Documentation')}>View API reference</button></section>
  </>}
 function Stat({icon:Icon,label,value,note}){return <div className="stat"><div className="stat-icon"><Icon/></div><div><span>{label}</span><strong>{value}</strong><small>{note}</small></div></div>}
-function Keys({showKey,setShowKey,keyValue,copyKey,setModal,created,notify}){return <section className="card keys"><div className="card-head"><div><h3>API keys</h3><p>Credentials used by your applications.</p></div><button className="secondary small" onClick={()=>setModal(true)}><Plus/> New key</button></div><div className="key-row"><div className="key-icon"><KeyRound/></div><div className="key-main"><b>Production key</b><span>{showKey?keyValue:'4ndev_sk_live_••••••••••••••••••••••••'}</span></div><button className="icon-btn" onClick={()=>setShowKey(!showKey)}>{showKey?<EyeOff/>:<Eye/>}</button><button className="icon-btn" onClick={copyKey}><Copy/></button><button className="icon-btn" onClick={()=>notify('Key actions menu will be connected to backend')}><MoreHorizontal/></button></div><div className="card-foot"><span className="live-dot"/> Active · Created today</div>{created&&<div className="new-key-note">Demo key created successfully. Backend persistence will be connected next.</div>}</section>}
+function Keys({showKey,setShowKey,keyValue,copyKey,setModal,created,notify,keys,loadingKeys,revokeKey}){return <section className="card keys"><div className="card-head"><div><h3>API keys</h3><p>Credentials used by your applications.</p></div><button className="secondary small" onClick={()=>setModal(true)}><Plus/> New key</button></div>{loadingKeys?<div className="empty-key">Loading API keys…</div>:keys.length===0?<div className="empty-key">No API keys yet.</div>:keys.map(k=><div className="key-row" key={k.id}><div className="key-icon"><KeyRound/></div><div className="key-main"><b>{k.name}</b><span>{k.prefix}••••••••••••</span></div><span className={k.active?'key-status active':'key-status'}>{k.active?'Active':'Revoked'}</span>{k.active&&<button className="icon-btn" title="Revoke" onClick={()=>revokeKey(k.id)}><X/></button>}<button className="icon-btn" onClick={()=>copyKey(k.prefix)} title="Copy prefix"><Copy/></button></div>)}<div className="card-foot"><span className="live-dot"/> API secrets are shown only once when created.</div>{created&&<div className="new-key-note">Key created successfully. The secret was shown once above.</div>}</section>}
 function Service({icon:Icon,name,desc,onClick}){return <button className="service service-button" onClick={onClick}><div className="service-icon"><Icon/></div><div><b>{name}</b><span>{desc}</span></div><span className="available">Available</span></button>}
 function Services({go}){return <><Header title="AI services" subtitle="Explore the capabilities exposed by 4N DEV Core."/><div className="service-grid">{services.map(s=><button className="service-card" key={s.name} onClick={()=>go(s.name)}><div className="service-icon large"><s.icon/></div><h3>{s.name}</h3><p>{s.desc}</p><span>Available <ChevronRight/></span></button>)}</div></>}
 function ServiceDetail({service,onBack,notify}){const I=service.icon;return <><button className="back-link" onClick={onBack}>← AI services</button><Header title={service.name} subtitle={service.detail}/><div className="detail-grid"><section className="card"><div className="detail-icon"><I/></div><h3>Core API</h3><p className="detail-text">{service.detail}</p><div className="endpoint"><span>POST</span>{service.endpoint}</div><button className="primary" onClick={()=>notify('API reference opened in the next backend phase')}><BookOpen/> View API reference</button></section><section className="card"><h3>Plan access</h3><div className="detail-row"><span>Status</span><b className="green">Available</b></div><div className="detail-row"><span>Usage cost</span><b>{service.cost}</b></div><div className="detail-row"><span>Authentication</span><b>Bearer API key</b></div></section></div></>}
