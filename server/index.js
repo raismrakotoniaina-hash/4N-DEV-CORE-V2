@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { loadConfig } from './config/env.js';
 import { requestId } from './middleware/request-id.js';
-import v1 from './routes/v1.js';
+import createV1Router from './routes/v1.js';
 import { notFound, errorHandler } from './middleware/errors.js';
 
 const config = loadConfig();
@@ -18,11 +18,16 @@ app.get('/health', (_req, res) => {
     success: true,
     name: '4N DEV Core API',
     status: 'online',
-    version: '2.0.0',
+    version: '2.0.0'
   });
 });
 
-app.use('/v1', v1);
+const developmentApiKeyRecords = [];
+app.use('/v1', createV1Router({
+  apiKeyRecords: developmentApiKeyRecords,
+  apiKeyPepper: config.apiKeyPepper
+}));
+
 app.use(notFound);
 app.use(errorHandler);
 
