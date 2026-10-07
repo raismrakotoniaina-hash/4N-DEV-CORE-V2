@@ -14,6 +14,13 @@ export function createDevelopersRepository(db) {
       );
       return result.rows[0] || null;
     },
+    async findWorkspaceByOwner(developerId) {
+      const result = await db.query(
+        'SELECT id, name, slug, status FROM workspaces WHERE owner_developer_id = $1 LIMIT 1',
+        [developerId]
+      );
+      return result.rows[0] || null;
+    },
     async createWithWorkspace({ email, fullName, passwordHash, workspaceName, workspaceSlug, initialCredits = 0 }) {
       const client = await db.connect();
       try {
