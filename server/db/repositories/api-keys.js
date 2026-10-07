@@ -14,6 +14,16 @@ export function createApiKeyRepository(db) {
       return result.rows[0] || null;
     },
 
+    async listByWorkspace(workspaceId) {
+      if (!db) return [];
+      const result = await db.query(
+        `SELECT id, name, key_prefix, status, created_at, revoked_at
+         FROM api_keys WHERE workspace_id = $1 ORDER BY created_at DESC`,
+        [workspaceId]
+      );
+      return result.rows;
+    },
+
     async insert({ workspaceId, name, keyPrefix, keyHash }) {
       if (!db) throw new Error('database_not_configured');
 
