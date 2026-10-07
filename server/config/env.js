@@ -7,6 +7,7 @@ export function loadConfig(env = process.env) {
     databaseUrl: env.DATABASE_URL || null,
     apiKeyPepper: env.API_KEY_PEPPER || null,
     sessionSecret: env.SESSION_SECRET || null,
+    corsOrigin: env.CORS_ORIGIN || null,
   };
 }
 
