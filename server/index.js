@@ -11,6 +11,8 @@ import { createApiKeyRepository } from './db/repositories/api-keys.js';
 import { createCreditsRepository } from './db/repositories/credits.js';
 import { createUsageRepository } from './db/repositories/usage.js';
 import { createCreditsService } from './services/credits-service.js';
+import { requireDeveloperSession } from './middleware/developer-session.js';
+import createApiKeysRouter from './routes/api-keys.js';
 import { notFound, errorHandler } from './middleware/errors.js';
 
 const config = loadConfig();
@@ -46,6 +48,18 @@ app.use('/api/auth', createAuthRouter({
   db: repositories,
   sessionSecret: config.sessionSecret,
   secureCookies: config.nodeEnv === 'production'
+}));
+
+const sessionMiddleware = requireDeveloperSession({
+  sessionRepository: repositories?.sessions,
+  developerRepository: repositories?.developers,
+  sessionSecret: config.sessionSecret
+});
+
+app.use('/api/keys', createApiKeysRouter({
+  apiKeyRepository: repositories?.apiKeys,
+  apiKeyPepper: config.apiKeyPepper,
+  sessionMiddleware
 }));
 
 const developmentApiKeyRecords = [];
