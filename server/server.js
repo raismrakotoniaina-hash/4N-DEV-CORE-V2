@@ -10,7 +10,8 @@ app.use(express.json({limit:'1mb'}));
 const state={
   workspace:{name:'Personal workspace',account:'Developer',plan:'Pro',credits:1250,monthlyCredits:3500},
   usage:{requests:2481,creditsUsed:2250,successRate:99.8},
-  keys:[{id:'key_001',name:'Production key',prefix:'4ndev_sk_live_',createdAt:new Date().toISOString(),active:true}]
+  keys:[{id:'key_001',name:'Production key',prefix:'4ndev_sk_live_',createdAt:new Date().toISOString(),active:true}],
+  projects:[]
 };
 
 function makeKey(){
@@ -44,5 +45,13 @@ app.post('/api/keys/:id/revoke',(req,res)=>{
  item.active=false;
  res.json({success:true,key:item});
 });
+app.get('/api/projects',(req,res)=>res.json({success:true,projects:state.projects}));
+app.post('/api/projects',(req,res)=>{
+ const name=String(req.body?.name||'').trim();
+ if(!name)return res.status(400).json({success:false,error:'Project name is required'});
+ const project={id:'proj_'+crypto.randomBytes(5).toString('hex'),name,status:'active',createdAt:new Date().toISOString(),apiKeys:0};
+ state.projects.push(project);res.status(201).json({success:true,project});
+});
+app.post('/api/projects/:id/archive',(req,res)=>{const p=state.projects.find(x=>x.id===req.params.id);if(!p)return res.status(404).json({success:false,error:'Project not found'});p.status='archived';res.json({success:true,project:p});});
 app.get('/v1/credits',auth,(req,res)=>res.json({success:true,credits:state.workspace.credits,plan:state.workspace.plan}));
 app.listen(PORT,()=>console.log('4N DEV Core API V2 running on port '+PORT));
