@@ -42,12 +42,15 @@ function App(){
  const loadKeys=async()=>{setLoadingKeys(true);try{const data=await api('/api/keys');setKeys(data.keys||[]);}catch(e){notify('Unable to load API keys');}finally{setLoadingKeys(false);}};
  useEffect(()=>{api('/api/dashboard').then(setDashboard).catch(()=>{});loadKeys();loadProjects();},[]);
  const [search,setSearch]=useState(false);
+ const [searchQuery,setSearchQuery]=useState('');
+ const searchItems=['Overview','AI services','Chat','Coding','Image','API keys','Usage','Billing','Projects','Documentation','Help center','Settings'];
  const loadProjects=async()=>{setLoadingProjects(true);try{const data=await api('/api/projects');setProjects(data.projects||[]);}catch(e){notify('Unable to load projects');}finally{setLoadingProjects(false);}};
  const createProject=async(name)=>{try{await api('/api/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});await loadProjects();notify('Project created');}catch(e){notify(e.message||'Unable to create project');}};
  const archiveProject=async(id)=>{try{await api('/api/projects/'+id+'/archive',{method:'POST'});await loadProjects();notify('Project archived');}catch(e){notify(e.message||'Unable to archive project');}};
  const key=keys.find(k=>k.active)?.prefix||'4ndev_sk_live_';
 
- const go=(page)=>{setActive(page);setMobile(false);setProfile(false);};
+ const go=(page)=>{setActive(page);setMobile(false);setProfile(false);setSearch(false);setSearchQuery('');};
+ const searchResults=searchItems.filter(x=>x.toLowerCase().includes(searchQuery.trim().toLowerCase())).slice(0,6);
  const signOut=()=>{sessionStorage.removeItem('4n_dev_demo_session');sessionStorage.removeItem('4n_dev_demo_user');setAuthenticated(false);setProfile(false);};
  if(!authenticated)return <AuthPage onLogin={(user)=>{sessionStorage.setItem('4n_dev_demo_session','1');sessionStorage.setItem('4n_dev_demo_user',JSON.stringify(user));setDeveloper(user);setAuthenticated(true);}}/>;
  const notify=(msg)=>{setToast(msg);setTimeout(()=>setToast(''),2200);};
@@ -64,7 +67,7 @@ function App(){
   </aside>
   {mobile&&<div className="scrim" onClick={()=>setMobile(false)}/>}
   <main className="main">
-   <header className="topbar"><button className="mobile-menu icon-btn" onClick={()=>setMobile(true)}><Menu/></button><div className="breadcrumbs"><span>4N DEV</span><b>/</b><strong>{active}</strong></div><div className="top-actions"><button className="icon-btn" onClick={()=>setSearch(!search)}><Search/></button>{search&&<input autoFocus className="search-box" placeholder="Search console..." onKeyDown={e=>e.key==='Escape'&&setSearch(false)}/>}<button className="help" onClick={()=>go('Documentation')}>Docs</button><div className="profile-wrap"><button className="user" onClick={()=>setProfile(!profile)}><span>{(developer.name||'Developer').split(/\\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase()}</span><ChevronDown/></button>{profile&&<div className="profile-menu"><b>{developer.name}</b><small>{developer.email}</small><hr/><button onClick={()=>go('Billing')}>Billing & plan</button><button onClick={()=>go('Settings')}>Account settings</button><button onClick={signOut}>Sign out</button></div>}</div></div></header>
+   <header className="topbar"><button className="mobile-menu icon-btn" onClick={()=>setMobile(true)}><Menu/></button><div className="breadcrumbs"><span>4N DEV</span><b>/</b><strong>{active}</strong></div><div className="top-actions"><button className="icon-btn" onClick={()=>setSearch(!search)}><Search/></button>{search&&<div className="search-wrap"><input autoFocus className="search-box" value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} placeholder="Search console..." onKeyDown={e=>{if(e.key==='Escape'){setSearch(false);setSearchQuery('');}if(e.key==='Enter'&&searchResults[0])go(searchResults[0]);}}/>{searchQuery&&<div className="search-results">{searchResults.length?searchResults.map(x=><button key={x} onClick={()=>go(x)}>{x}<ChevronRight/></button>):<span>No results</span>}</div>}</div>}<button className="help" onClick={()=>go('Documentation')}>Docs</button><div className="profile-wrap"><button className="user" onClick={()=>setProfile(!profile)}><span>{(developer.name||'Developer').split(/\\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase()}</span><ChevronDown/></button>{profile&&<div className="profile-menu"><b>{developer.name}</b><small>{developer.email}</small><hr/><button onClick={()=>go('Billing')}>Billing & plan</button><button onClick={()=>go('Settings')}>Account settings</button><button onClick={signOut}>Sign out</button></div>}</div></div></header>
    <div className="content">
     {active==='Overview'&&<Overview go={go} dashboard={dashboard} showKey={showKey} setShowKey={setShowKey} keyValue={key} copyKey={copyKey} setModal={setModal} created={created} keys={keys} loadingKeys={loadingKeys} revokeKey={revokeKey}/>}
     {active==='AI services'&&<Services go={go}/>}
