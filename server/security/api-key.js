@@ -5,7 +5,7 @@ const SECRET_BYTES = 32;
 
 export function parseBearerToken(headerValue) {
   if (typeof headerValue !== 'string') return null;
-  const match = headerValue.match(/^Bearer\\s+(.+)$/i);
+  const match = headerValue.match(/^Bearer\s+(.+)$/i);
   return match ? match[1].trim() : null;
 }
 
@@ -30,11 +30,7 @@ export function safeEqualHex(a, b) {
 
 export function createApiKeySecret() {
   const secret = PREFIX + crypto.randomBytes(SECRET_BYTES).toString('base64url');
-  return {
-    secret,
-    prefix: secret.slice(0, PREFIX.length + 8),
-    hash: null
-  };
+  return { secret, prefix: secret.slice(0, PREFIX.length + 8) };
 }
 
 export function createStoredApiKey(secret, pepper, metadata = {}) {
@@ -51,6 +47,5 @@ export function createStoredApiKey(secret, pepper, metadata = {}) {
 
 export function verifyApiKey(secret, record, pepper) {
   if (!isValidApiKeyFormat(secret) || !record || record.status !== 'active') return false;
-  const presentedHash = hashApiKey(secret, pepper);
-  return safeEqualHex(presentedHash, record.keyHash);
+  return safeEqualHex(hashApiKey(secret, pepper), record.keyHash);
 }
