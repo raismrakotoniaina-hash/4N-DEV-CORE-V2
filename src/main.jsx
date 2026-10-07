@@ -1,4 +1,4 @@
-import React,{useState} from 'react';
+import React,{useEffect,useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {Activity,BarChart3,BookOpen,ChevronDown,ChevronRight,CircleHelp,Code2,Copy,CreditCard,ExternalLink,Eye,EyeOff,FileCode2,Image,KeyRound,LayoutDashboard,Menu,MoreHorizontal,PanelLeftClose,PanelLeftOpen,Plus,Search,Settings,ShieldCheck,Sparkles,WalletCards,X,Zap} from 'lucide-react';
 import './styles.css';
@@ -11,6 +11,8 @@ const nav=[
  {label:'Billing',icon:CreditCard},
  {label:'Projects',icon:FileCode2},
 ];
+const API_BASE=import.meta.env.VITE_CORE_API_URL||'';
+async function api(path,options={}){const res=await fetch(API_BASE+path,options);const data=await res.json();if(!res.ok)throw new Error(data.error||'Request failed');return data;}
 const services=[
  {name:'Chat',icon:Sparkles,desc:'Conversational AI',detail:'Fast conversational models for assistants, support and product experiences.',endpoint:'/v1/chat',cost:'1 credit / request'},
  {name:'Coding',icon:Code2,desc:'Code generation & analysis',detail:'Generate, explain, refactor and review code through the Core API.',endpoint:'/v1/coding',cost:'8 credits / request'},
