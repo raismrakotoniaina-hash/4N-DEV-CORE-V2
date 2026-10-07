@@ -60,11 +60,11 @@ function App(){
    <div className="brand"><div className="brand-mark">4N</div>{open&&<div><strong>4N DEV</strong><span>Developer Console</span></div>}<button className="icon-btn side-toggle" onClick={()=>setOpen(!open)}>{open?<PanelLeftClose/>:<PanelLeftOpen/>}</button></div>
    {open&&<div className="workspace"><span className="eyebrow">WORKSPACE</span><button className="workspace-btn"><div className="avatar">D</div><div><b>{developer.name}</b><small>Personal workspace</small></div><ChevronDown/></button></div>}
    <nav>{nav.map(n=>{const I=n.icon;return <div key={n.label}><button className={active===n.label?'nav-item active':'nav-item'} onClick={()=>go(n.label)}><I/>{open&&<span>{n.label}</span>}{open&&n.items&&<ChevronDown className="nav-chevron"/>}</button>{open&&n.items&&<div className="subnav">{n.items.map(x=><button className={active===x?'selected':''} key={x} onClick={()=>go(x)}>{x}</button>)}</div>}</div>})}</nav>
-   <div className="sidebar-bottom">{open&&<><button className="nav-item" onClick={()=>notify('Documentation will open when the API reference is connected')}><BookOpen/><span>Documentation</span><ExternalLink className="tiny"/></button><button className="nav-item" onClick={()=>notify('Help center is being prepared')}><CircleHelp/><span>Help center</span></button></>}<button className={active==='Settings'?'nav-item active':'nav-item'} onClick={()=>go('Settings')}><Settings/>{open&&<span>Settings</span>}</button></div>
+   <div className="sidebar-bottom">{open&&<><button className={active==='Documentation'?'nav-item active':'nav-item'} onClick={()=>go('Documentation')}><BookOpen/><span>Documentation</span><ExternalLink className="tiny"/></button><button className="nav-item" onClick={()=>notify('Help center is being prepared')}><CircleHelp/><span>Help center</span></button></>}<button className={active==='Settings'?'nav-item active':'nav-item'} onClick={()=>go('Settings')}><Settings/>{open&&<span>Settings</span>}</button></div>
   </aside>
   {mobile&&<div className="scrim" onClick={()=>setMobile(false)}/>}
   <main className="main">
-   <header className="topbar"><button className="mobile-menu icon-btn" onClick={()=>setMobile(true)}><Menu/></button><div className="breadcrumbs"><span>4N DEV</span><b>/</b><strong>{active}</strong></div><div className="top-actions"><button className="icon-btn" onClick={()=>setSearch(!search)}><Search/></button>{search&&<input autoFocus className="search-box" placeholder="Search console..." onKeyDown={e=>e.key==='Escape'&&setSearch(false)}/>}<button className="help" onClick={()=>notify('API documentation is coming next')}>Docs</button><div className="profile-wrap"><button className="user" onClick={()=>setProfile(!profile)}><span>DR</span><ChevronDown/></button>{profile&&<div className="profile-menu"><b>{developer.name}</b><small>{developer.email}</small><hr/><button onClick={()=>go('Billing')}>Billing & plan</button><button onClick={()=>go('Settings')}>Account settings</button><button onClick={signOut}>Sign out</button></div>}</div></div></header>
+   <header className="topbar"><button className="mobile-menu icon-btn" onClick={()=>setMobile(true)}><Menu/></button><div className="breadcrumbs"><span>4N DEV</span><b>/</b><strong>{active}</strong></div><div className="top-actions"><button className="icon-btn" onClick={()=>setSearch(!search)}><Search/></button>{search&&<input autoFocus className="search-box" placeholder="Search console..." onKeyDown={e=>e.key==='Escape'&&setSearch(false)}/>}<button className="help" onClick={()=>go('Documentation')}>Docs</button><div className="profile-wrap"><button className="user" onClick={()=>setProfile(!profile)}><span>DR</span><ChevronDown/></button>{profile&&<div className="profile-menu"><b>{developer.name}</b><small>{developer.email}</small><hr/><button onClick={()=>go('Billing')}>Billing & plan</button><button onClick={()=>go('Settings')}>Account settings</button><button onClick={signOut}>Sign out</button></div>}</div></div></header>
    <div className="content">
     {active==='Overview'&&<Overview go={go} dashboard={dashboard} showKey={showKey} setShowKey={setShowKey} keyValue={key} copyKey={copyKey} setModal={setModal} created={created} keys={keys} loadingKeys={loadingKeys} revokeKey={revokeKey}/>}
     {active==='AI services'&&<Services go={go}/>}
@@ -110,6 +110,153 @@ function ServiceDetail({service,onBack,notify}){const I=service.icon;return <><b
 function Usage({dashboard}){const u=dashboard?.usage;const w=dashboard?.workspace;return <><Header title="Usage" subtitle="Monitor requests, credits and activity."/><div className="stats"><Stat icon={Activity} label="Requests" value={u?.requests?.toLocaleString() ?? "—"} note="This billing period"/><Stat icon={WalletCards} label="Credits used" value={u?.creditsUsed?.toLocaleString() ?? "—"} note={w?.monthlyCredits ? `Of ${w.monthlyCredits.toLocaleString()} monthly` : "Plan data unavailable"}/><Stat icon={Zap} label="Remaining" value={w?.credits?.toLocaleString() ?? "—"} note="Available now"/><Stat icon={BarChart3} label="Success rate" value={u?.successRate != null ? `${u.successRate}%` : "—"} note="Last 30 days"/></div><section className="card usage-card"><div className="card-head"><div><h3>API activity</h3><p>Requests across Core services.</p></div></div><div className="bars">{[35,52,42,68,57,82,64,91,73,88,76,96].map((h,i)=><div className="bar-wrap" key={i}><div className="bar" style={{height:h+'%'}}/><small>{i+1}</small></div>)}</div></section></>}
 function Billing({dashboard}){const [message,setMessage]=useState('');const w=dashboard?.workspace;const u=dashboard?.usage;const monthly=Number(w?.monthlyCredits||0);const used=Number(u?.creditsUsed||0);const remaining=Number(w?.credits||0);const percent=monthly>0?Math.min(100,Math.max(0,(used/monthly)*100)):0;const notifyPlan=()=>{setMessage('Plan management will be connected to the Core billing service.');setTimeout(()=>setMessage(''),2600);};return <><Header title="Billing" subtitle="Manage your plan, credits and payment settings."/><div className="billing-grid"><section className="card plan-card"><span className="kicker">CURRENT PLAN</span><h2>{w?.plan??'—'}</h2><p>{monthly?monthly.toLocaleString()+' credits / month':'Plan data unavailable'}</p><strong>Billing backend pending</strong><button className="primary" onClick={notifyPlan}>Manage plan</button></section><section className="card"><div className="card-head"><div><h3>Credits</h3><p>Current billing-period consumption.</p></div><span className="billing-percent">{monthly?Math.round(percent)+'%':'—'}</span></div><div className="progress"><span style={{width:percent+'%'}}/></div><div className="billing-metrics"><div><span>Used</span><b>{used.toLocaleString()}</b></div><div><span>Remaining</span><b>{remaining.toLocaleString()}</b></div><div><span>Monthly</span><b>{monthly.toLocaleString()}</b></div></div><hr/><h3>Payment method</h3><div className="payment pending"><CreditCard/><div><b>Not connected</b><span>Payment settings will be connected to the Core billing backend.</span></div></div></section></div>{message&&<div className="toast">{message}</div>}</>}
 function Projects({projects,loading,createProject,archiveProject}){const [modal,setModal]=useState(false);const [name,setName]=useState('');const submit=()=>{if(!name.trim())return;createProject(name.trim());setName('');setModal(false);};return <><Header title="Projects" subtitle="Organize applications that use your Core API." action={<button className="primary" onClick={()=>setModal(true)}><Plus/> Create project</button>}/>{loading?<section className="card empty"><p>Loading projects…</p></section>:projects.length===0?<section className="empty card"><div className="empty-icon"><FileCode2/></div><h3>No projects yet</h3><p>Create a project for each independent application that uses 4N DEV Core.</p><button className="primary" onClick={()=>setModal(true)}><Plus/> Create project</button></section>:<section className="project-list">{projects.map(p=><div className="card project-row" key={p.id}><div className="project-icon"><FileCode2/></div><div className="project-main"><h3>{p.name}</h3><p>{p.id} · Created {new Date(p.createdAt).toLocaleDateString()}</p></div><span className={p.status==='active'?'key-status active':'key-status'}>{p.status}</span>{p.status==='active'&&<button className="secondary small" onClick={()=>archiveProject(p.id)}>Archive</button>}</div>)}</section>}{modal&&<div className="modal-backdrop" onClick={()=>setModal(false)}><div className="modal" onClick={e=>e.stopPropagation()}><div className="modal-head"><div><h3>Create project</h3><p>Projects stay independent from Core itself.</p></div><button className="icon-btn" onClick={()=>setModal(false)}><X/></button></div><label>Project name<input value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. N-AI Chat" autoFocus/></label><div className="warning"><ShieldCheck/><span>Each application can have its own project and API keys.</span></div><div className="modal-actions"><button className="secondary" onClick={()=>setModal(false)}>Cancel</button><button className="primary" disabled={!name.trim()} onClick={submit}>Create project</button></div></div></div>}</>}
+function Documentation({notify}){
+ const [lang,setLang]=useState('JavaScript');
+ const [copied,setCopied]=useState('');
+ const base='<CORE_API_BASE_URL>';
+ const snippets={
+  JavaScript:`const CORE_API_BASE_URL = process.env.CORE_API_BASE_URL;
+const CORE_API_KEY = process.env.CORE_API_KEY;
+
+const response = await fetch(\`\\${CORE_API_BASE_URL}/v1/chat\`, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': \`Bearer \${CORE_API_KEY}\`
+  },
+  body: JSON.stringify({
+    model: process.env.CORE_CHAT_MODEL,
+    messages: [
+      { role: 'user', content: 'Hello from my app' }
+    ]
+  })
+});
+
+if (!response.ok) {
+  throw new Error(\`Core API error: \${response.status}\`);
+}
+
+const data = await response.json();
+console.log(data);`,
+  Python:`import os
+import requests
+
+CORE_API_BASE_URL = os.environ["CORE_API_BASE_URL"]
+CORE_API_KEY = os.environ["CORE_API_KEY"]
+
+response = requests.post(
+    f"{CORE_API_BASE_URL}/v1/chat",
+    headers={
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {CORE_API_KEY}",
+    },
+    json={
+        "model": os.environ["CORE_CHAT_MODEL"],
+        "messages": [
+            {"role": "user", "content": "Hello from my app"}
+        ],
+    },
+    timeout=60,
+)
+
+response.raise_for_status()
+print(response.json())`,
+  cURL:`curl "$CORE_API_BASE_URL/v1/chat" \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $CORE_API_KEY" \
+  -d '{
+    "model": "$CORE_CHAT_MODEL",
+    "messages": [
+      {"role": "user", "content": "Hello from my app"}
+    ]
+  }'`
+ };
+ const copy=async()=>{
+  try{await navigator.clipboard.writeText(snippets[lang]);setCopied(lang);notify('Code copied');setTimeout(()=>setCopied(''),1600);}
+  catch{notify('Copy unavailable on this device');}
+ };
+ return <>
+  <Header title="Documentation" subtitle="Build independent applications on top of the 4N DEV Core API."/>
+  <div className="docs-layout">
+   <aside className="card docs-nav">
+    <div className="docs-nav-title">API reference</div>
+    <button className="selected">Quick start</button>
+    <button onClick={()=>document.getElementById('docs-auth')?.scrollIntoView({behavior:'smooth'})}>Authentication</button>
+    <button onClick={()=>document.getElementById('docs-chat')?.scrollIntoView({behavior:'smooth'})}>Chat</button>
+    <button onClick={()=>document.getElementById('docs-services')?.scrollIntoView({behavior:'smooth'})}>Coding & Image</button>
+    <button onClick={()=>document.getElementById('docs-errors')?.scrollIntoView({behavior:'smooth'})}>Errors</button>
+    <button onClick={()=>document.getElementById('docs-usage')?.scrollIntoView({behavior:'smooth'})}>Credits & usage</button>
+   </aside>
+   <div className="docs-main">
+    <section className="card docs-card">
+     <div className="docs-kicker">QUICK START</div>
+     <h2>Connect your application to 4N DEV Core</h2>
+     <p>Use a <code>4ndev_sk_...</code> secret from API keys and send authenticated requests from your server. Your application remains independent; Core provides the AI infrastructure.</p>
+     <div className="docs-contract"><div><span>Production base URL</span><strong>To be configured with the production Core server</strong></div><div><span>Authentication</span><strong>Bearer API key</strong></div></div>
+     <div className="docs-callout"><ShieldCheck/><div><b>Important</b><span>This documentation defines the intended API contract for V2. The production base URL, model IDs and live service endpoints will be finalized when the Core server is connected.</span></div></div>
+    </section>
+
+    <section className="card docs-card" id="docs-auth">
+     <div className="docs-kicker">AUTHENTICATION</div>
+     <h2>Use your API key securely</h2>
+     <p>Send the key in the <code>Authorization</code> header. Keep it on your server or trusted backend; never put it in browser JavaScript, mobile source code or public repositories.</p>
+     <div className="docs-code-line"><span>Authorization</span><code>Bearer 4ndev_sk_...</code></div>
+    </section>
+
+    <section className="card docs-card" id="docs-chat">
+     <div className="docs-kicker">CHAT API</div>
+     <h2>Make a chat request</h2>
+     <p>The example below is intentionally contract-based. Replace the environment values with the official production configuration once Core is connected.</p>
+     <div className="code-tabs">{Object.keys(snippets).map(x=><button key={x} className={lang===x?'active':''} onClick={()=>setLang(x)}>{x}</button>)}<button className="copy-code" onClick={copy}><Copy/>{copied===lang?'Copied':'Copy code'}</button></div>
+     <pre className="docs-code"><code>{snippets[lang]}</code></pre>
+     <div className="docs-example-grid"><div><span>Request</span><pre><code>{`{
+  "model": "<CHAT_MODEL>",
+  "messages": [
+    { "role": "user", "content": "Hello" }
+  ]
+}`}</code></pre></div><div><span>Response shape</span><pre><code>{`{
+  "id": "<REQUEST_ID>",
+  "model": "<CHAT_MODEL>",
+  "output": "<MODEL_OUTPUT>",
+  "usage": {
+    "credits": 1
+  }
+}`}</code></pre></div></div>
+    </section>
+
+    <section className="card docs-card" id="docs-services">
+     <div className="docs-kicker">SERVICES</div>
+     <h2>Coding and Image</h2>
+     <div className="docs-endpoints">
+      <div><span className="method">POST</span><b>/v1/coding</b><small>Code generation, analysis, refactoring and review. Contract and model IDs will be finalized with production Core.</small></div>
+      <div><span className="method">POST</span><b>/v1/image</b><small>Image generation. Image options, model IDs and response format will be finalized with production Core.</small></div>
+     </div>
+    </section>
+
+    <section className="card docs-card" id="docs-errors">
+     <div className="docs-kicker">ERRORS</div>
+     <h2>Handle API errors</h2>
+     <div className="docs-errors"><div><b>401</b><span>Invalid, missing or revoked API key.</span></div><div><b>402</b><span>Insufficient credits or billing restriction.</span></div><div><b>400</b><span>Invalid request parameters.</span></div><div><b>429</b><span>Rate limit exceeded.</span></div><div><b>5xx</b><span>Temporary Core service failure; retry with backoff where appropriate.</span></div></div>
+    </section>
+
+    <section className="card docs-card" id="docs-usage">
+     <div className="docs-kicker">CREDITS & USAGE</div>
+     <h2>Know what each request costs</h2>
+     <div className="docs-costs"><div><b>Chat</b><span>1 credit / request</span></div><div><b>Coding</b><span>8 credits / request</span></div><div><b>Image</b><span>50 credits / image</span></div></div>
+     <p className="docs-muted">Usage and credit balances are visible in Developer Console. Final production pricing, model-specific costs and usage response fields are controlled by the Core billing contract.</p>
+    </section>
+
+    <section className="card docs-card">
+     <div className="docs-kicker">ENDPOINTS & MODELS</div>
+     <h2>API surface</h2>
+     <div className="docs-endpoint-table"><div><b>POST /v1/chat</b><span>Chat generation</span></div><div><b>POST /v1/coding</b><span>Coding generation and analysis</span></div><div><b>POST /v1/image</b><span>Image generation</span></div></div>
+     <p className="docs-muted">Model identifiers are not hard-coded in this console yet. Production model names will be published here when the Core server contract is finalized.</p>
+    </section>
+   </div>
+  </div>
+ </>
+}
 function SettingsPage({notify,developer,onSignOut}){return <><Header title="Settings" subtitle="Manage your developer account, workspace and security."/><div className="settings-list">
 <section className="card settings-card"><div className="card-head"><div><h3>Developer account</h3><p>Your account identity for the Core Developer Console.</p></div><span className="settings-badge">ACCOUNT</span></div><div className="detail-row"><span>Full name</span><b>{developer?.name||'Developer'}</b></div><div className="detail-row"><span>Email</span><b>{developer?.email||'—'}</b></div><button className="secondary" onClick={()=>notify('Profile editing will be connected to Core authentication')}>Edit profile</button></section>
 <section className="card settings-card"><div className="card-head"><div><h3>Workspace</h3><p>Workspace configuration and plan ownership.</p></div></div><div className="detail-row"><span>Workspace</span><b>Personal workspace</b></div><div className="detail-row"><span>Role</span><b>Developer</b></div><div className="detail-row"><span>API platform</span><b className="green">4N DEV Core</b></div><button className="secondary" onClick={()=>notify('Workspace management will be connected to the Core server')}>Manage workspace</button></section>
