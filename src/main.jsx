@@ -20,6 +20,8 @@ const services=[
 ];
 
 function App(){
+ const [authenticated,setAuthenticated]=useState(()=>sessionStorage.getItem('4n_dev_demo_session')==='1');
+ const [developer,setDeveloper]=useState(()=>{try{return JSON.parse(sessionStorage.getItem('4n_dev_demo_user'))||{name:'Developer',email:'developer@4ndev.local'};}catch{return {name:'Developer',email:'developer@4ndev.local'}}});
  const [active,setActive]=useState('Overview');
  const [open,setOpen]=useState(true);
  const [mobile,setMobile]=useState(false);
@@ -40,6 +42,8 @@ function App(){
  const key=keys.find(k=>k.active)?.prefix||'4ndev_sk_live_';
 
  const go=(page)=>{setActive(page);setMobile(false);setProfile(false);};
+ const signOut=()=>{sessionStorage.removeItem('4n_dev_demo_session');sessionStorage.removeItem('4n_dev_demo_user');setAuthenticated(false);setProfile(false);};
+ if(!authenticated)return <AuthPage onLogin={(user)=>{sessionStorage.setItem('4n_dev_demo_session','1');sessionStorage.setItem('4n_dev_demo_user',JSON.stringify(user));setDeveloper(user);setAuthenticated(true);}}/>;
  const notify=(msg)=>{setToast(msg);setTimeout(()=>setToast(''),2200);};
  const copyKey=async(value=key)=>{try{await navigator.clipboard.writeText(value);notify('API key copied');}catch{notify('Copy unavailable on this device');}};
  const createKey=async()=>{if(!keyName.trim())return;try{const data=await api('/api/keys',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:keyName.trim()})});setCreated(true);setModal(false);setKeyName('');setRevealedSecret(data.key.secret);setRevealedName(data.key.name);await loadKeys();notify('API key created');}catch(e){notify(e.message||'Unable to create API key');}};
@@ -48,13 +52,13 @@ function App(){
  return <div className="app">
   <aside className={`sidebar ${open?'':'collapsed'} ${mobile?'mobile-open':''}`}>
    <div className="brand"><div className="brand-mark">4N</div>{open&&<div><strong>4N DEV</strong><span>Developer Console</span></div>}<button className="icon-btn side-toggle" onClick={()=>setOpen(!open)}>{open?<PanelLeftClose/>:<PanelLeftOpen/>}</button></div>
-   {open&&<div className="workspace"><span className="eyebrow">WORKSPACE</span><button className="workspace-btn"><div className="avatar">D</div><div><b>Developer</b><small>Personal workspace</small></div><ChevronDown/></button></div>}
+   {open&&<div className="workspace"><span className="eyebrow">WORKSPACE</span><button className="workspace-btn"><div className="avatar">D</div><div><b>{developer.name}</b><small>Personal workspace</small></div><ChevronDown/></button></div>}
    <nav>{nav.map(n=>{const I=n.icon;return <div key={n.label}><button className={active===n.label?'nav-item active':'nav-item'} onClick={()=>go(n.label)}><I/>{open&&<span>{n.label}</span>}{open&&n.items&&<ChevronDown className="nav-chevron"/>}</button>{open&&n.items&&<div className="subnav">{n.items.map(x=><button className={active===x?'selected':''} key={x} onClick={()=>go(x)}>{x}</button>)}</div>}</div>})}</nav>
    <div className="sidebar-bottom">{open&&<><button className="nav-item" onClick={()=>notify('Documentation will open when the API reference is connected')}><BookOpen/><span>Documentation</span><ExternalLink className="tiny"/></button><button className="nav-item" onClick={()=>notify('Help center is being prepared')}><CircleHelp/><span>Help center</span></button></>}<button className={active==='Settings'?'nav-item active':'nav-item'} onClick={()=>go('Settings')}><Settings/>{open&&<span>Settings</span>}</button></div>
   </aside>
   {mobile&&<div className="scrim" onClick={()=>setMobile(false)}/>}
   <main className="main">
-   <header className="topbar"><button className="mobile-menu icon-btn" onClick={()=>setMobile(true)}><Menu/></button><div className="breadcrumbs"><span>4N DEV</span><b>/</b><strong>{active}</strong></div><div className="top-actions"><button className="icon-btn" onClick={()=>setSearch(!search)}><Search/></button>{search&&<input autoFocus className="search-box" placeholder="Search console..." onKeyDown={e=>e.key==='Escape'&&setSearch(false)}/>}<button className="help" onClick={()=>notify('API documentation is coming next')}>Docs</button><div className="profile-wrap"><button className="user" onClick={()=>setProfile(!profile)}><span>DR</span><ChevronDown/></button>{profile&&<div className="profile-menu"><b>Developer</b><small>Personal workspace</small><hr/><button onClick={()=>go('Billing')}>Billing & plan</button><button onClick={()=>go('Settings')}>Account settings</button><button onClick={()=>notify('Sign out will be connected to authentication')}>Sign out</button></div>}</div></div></header>
+   <header className="topbar"><button className="mobile-menu icon-btn" onClick={()=>setMobile(true)}><Menu/></button><div className="breadcrumbs"><span>4N DEV</span><b>/</b><strong>{active}</strong></div><div className="top-actions"><button className="icon-btn" onClick={()=>setSearch(!search)}><Search/></button>{search&&<input autoFocus className="search-box" placeholder="Search console..." onKeyDown={e=>e.key==='Escape'&&setSearch(false)}/>}<button className="help" onClick={()=>notify('API documentation is coming next')}>Docs</button><div className="profile-wrap"><button className="user" onClick={()=>setProfile(!profile)}><span>DR</span><ChevronDown/></button>{profile&&<div className="profile-menu"><b>{developer.name}</b><small>{developer.email}</small><hr/><button onClick={()=>go('Billing')}>Billing & plan</button><button onClick={()=>go('Settings')}>Account settings</button><button onClick={signOut}>Sign out</button></div>}</div></div></header>
    <div className="content">
     {active==='Overview'&&<Overview go={go} dashboard={dashboard} showKey={showKey} setShowKey={setShowKey} keyValue={key} copyKey={copyKey} setModal={setModal} created={created} keys={keys} loadingKeys={loadingKeys} revokeKey={revokeKey}/>}
     {active==='AI services'&&<Services go={go}/>}
@@ -72,6 +76,16 @@ function App(){
  </div>
 }
 
+function AuthPage({onLogin}){
+ const [mode,setMode]=useState('login');
+ const [name,setName]=useState('');
+ const [email,setEmail]=useState('');
+ const [password,setPassword]=useState('');
+ const [forgot,setForgot]=useState(false);
+ const [message,setMessage]=useState('');
+ const submit=(e)=>{e.preventDefault();if(forgot){setMessage('Password recovery will connect to the Core authentication service.');return;}if(!email.trim()||!password.trim()||(mode==='signup'&&!name.trim()))return;onLogin({name:name.trim()||email.split('@')[0]||'Developer',email:email.trim()});};
+ return <div className="auth-shell"><div className="auth-glow glow-a"/><div className="auth-glow glow-b"/><div className="auth-card"><div className="auth-brand"><div className="brand-mark">4N</div><div><strong>4N DEV</strong><span>Developer Platform</span></div></div>{forgot?<><div className="auth-copy"><p className="kicker">ACCOUNT RECOVERY</p><h1>Reset your password</h1><p>Enter your developer email and we will connect this flow to the secure Core authentication service.</p></div><form onSubmit={submit}><label>Email address<input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@company.com" autoFocus required/></label>{message&&<div className="auth-message">{message}</div>}<button className="primary auth-submit" type="submit">Continue</button><button className="auth-link" type="button" onClick={()=>{setForgot(false);setMessage('');}}>Back to sign in</button></form></>:<><div className="auth-tabs"><button className={mode==='login'?'active':''} onClick={()=>setMode('login')}>Sign in</button><button className={mode==='signup'?'active':''} onClick={()=>setMode('signup')}>Create account</button></div><div className="auth-copy"><p className="kicker">4N DEV CORE</p><h1>{mode==='login'?'Welcome back.':'Create your developer account.'}</h1><p>{mode==='login'?'Sign in to manage your Core API workspace, keys, usage and billing.':'Start with a developer workspace and connect your applications to 4N DEV Core.'}</p></div><form onSubmit={submit}>{mode==='signup'&&<label>Full name<input value={name} onChange={e=>setName(e.target.value)} placeholder="Your name" autoFocus required/></label>}<label>Email address<input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@company.com" autoFocus={mode==='login'} required/></label><label>Password<input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" required minLength="6"/></label>{mode==='login'&&<div className="auth-row"><span>Secure developer account</span><button type="button" className="auth-link-inline" onClick={()=>setForgot(true)}>Forgot password?</button></div>}<button className="primary auth-submit" type="submit">{mode==='login'?'Sign in':'Create account'}</button></form><div className="auth-note"><ShieldCheck/> <span>This is the frontend authentication shell. Real sessions, password storage and account persistence will be connected to the Core server.</span></div></>}</div></div>
+}
 function Header({title,subtitle,action}){return <div className="page-head"><div><p className="kicker">DEVELOPER PLATFORM</p><h1>{title}</h1><p className="subtitle">{subtitle}</p></div>{action}</div>}
 function Overview({go,dashboard,showKey,setShowKey,keyValue,copyKey,setModal,created,keys,loadingKeys,revokeKey}){return <>
  <Header title="Overview" subtitle="Build with the 4N DEV Core API." action={<button className="primary" onClick={()=>setModal(true)}><Plus/> Create API key</button>}/>
