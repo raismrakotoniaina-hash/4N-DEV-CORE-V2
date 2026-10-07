@@ -12,7 +12,7 @@ const nav=[
  {label:'Projects',icon:FileCode2},
 ];
 function App(){
- const [active,setActive]=useState('Overview'),[open,setOpen]=useState(true),[mobile,setMobile]=useState(false);
+ const [active,setActive]=useState('Overview'),[open,setOpen]=useState(true),[mobile,setMobile]=useState(false),[profile,setProfile]=useState(false);
  const [showKey,setShowKey]=useState(false);
  const key='4ndev_sk_live_••••••••••••••••••••••••';
  return <div className="app">
@@ -24,10 +24,10 @@ function App(){
   </aside>
   {mobile&&<div className="scrim" onClick={()=>setMobile(false)}/>}
   <main className="main">
-   <header className="topbar"><button className="mobile-menu icon-btn" onClick={()=>setMobile(true)}><Menu/></button><div className="breadcrumbs"><span>4N DEV</span><b>/</b><strong>{active}</strong></div><div className="top-actions"><button className="icon-btn"><Search/></button><button className="help">Docs</button><button className="user"><span>DR</span><ChevronDown/></button></div></header>
+   <header className="topbar"><button className="mobile-menu icon-btn" onClick={()=>setMobile(true)}><Menu/></button><div className="breadcrumbs"><span>4N DEV</span><b>/</b><strong>{active}</strong></div><div className="top-actions"><button className="icon-btn"><Search/></button><button className="help">Docs</button><div className="profile-wrap"><button className="user" onClick={()=>setProfile(!profile)}><span>DR</span><ChevronDown/></button>{profile&&<div className="profile-menu"><b>Developer</b><small>developer@4ndev.app</small><hr/><button onClick={()=>setActive("Billing")}>Billing & plan</button><button>Account settings</button><button>Sign out</button></div>}</div></div></header>
    <div className="content">
     <div className="page-head"><div><p className="kicker">DEVELOPER PLATFORM</p><h1>{active}</h1><p className="subtitle">Build with the 4N DEV Core API.</p></div><button className="primary"><Plus/> Create API key</button></div>
-    <section className="hero"><div><div className="status"><span className="dot"/> All systems operational</div><h2>Everything you need to build with AI.</h2><p>Access 4N DEV Core models, manage credentials, monitor usage and control your workspace from one place.</p><div className="hero-actions"><button className="primary">Explore the API <ExternalLink/></button><button className="secondary">Read documentation</button></div></div><div className="orb"><div className="orb-ring ring1"/><div className="orb-ring ring2"/><div className="orb-core"><Sparkles/></div></div></section>
+    <section className="hero"><div><div className="status"><span className="dot"/> All systems operational</div><h2>Everything you need to build with AI.</h2><p>Access 4N DEV Core models, manage credentials, monitor usage and control your workspace from one place.</p><div className="hero-actions"><button className="primary">Explore the API <ExternalLink/></button><button className="secondary" onClick={()=>go("AI services")}>Read documentation</button></div></div><div className="orb"><div className="orb-ring ring1"/><div className="orb-ring ring2"/><div className="orb-core"><Sparkles/></div></div></section>
     <div className="section-title"><div><h3>Workspace</h3><p>Current account and platform activity.</p></div><button className="ghost">View usage <ExternalLink/></button></div>
     <div className="stats"><Stat icon={WalletCards} label="Available credits" value="1,250" note="Resets with your plan"/><Stat icon={Activity} label="API requests" value="2,481" note="This billing period"/><Stat icon={Zap} label="Current plan" value="Pro" note="3,500 credits / month"/><Stat icon={ShieldCheck} label="API status" value="Operational" note="99.99% availability"/></div>
     <div className="grid">
