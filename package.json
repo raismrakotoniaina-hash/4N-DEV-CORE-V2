@@ -16,7 +16,8 @@
     "react-dom": "latest",
     "lucide-react": "latest",
     "express": "latest",
-    "cors": "latest"
+    "cors": "latest",
+    "pg": "latest"
   },
   "devDependencies": {}
 }
