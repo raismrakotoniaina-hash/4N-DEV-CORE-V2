@@ -29,6 +29,8 @@ function App(){
  const [keyName,setKeyName]=useState('');
  const [created,setCreated]=useState(false);
  const [toast,setToast]=useState('');
+ const [dashboard,setDashboard]=useState(null);
+ useEffect(()=>{api('/api/dashboard').then(setDashboard).catch(()=>{});},[]);
  const [search,setSearch]=useState(false);
  const key='4ndev_sk_live_••••••••••••••••••••••••';
 
