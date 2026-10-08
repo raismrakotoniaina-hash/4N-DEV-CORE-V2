@@ -1,0 +1,25 @@
+[Unit]
+Description=4N DEV Core V2 API
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=4ndev
+Group=4ndev
+WorkingDirectory=/opt/4n-dev-core
+EnvironmentFile=/etc/4n-dev-core/core.env
+ExecStart=/usr/bin/node /opt/4n-dev-core/server/index.js
+Restart=always
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=20
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/4n-dev-core
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target
