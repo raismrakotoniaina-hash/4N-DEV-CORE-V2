@@ -9,6 +9,14 @@ function parseBoolean(value, fallback) {
   return ['1', 'true', 'yes', 'on'].includes(String(value).toLowerCase());
 }
 
+function isHttpsUrl(value) {
+  try {
+    return new URL(value).protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 export function loadConfig(env = process.env) {
   return {
     nodeEnv: env.NODE_ENV || 'development',
@@ -19,15 +27,12 @@ export function loadConfig(env = process.env) {
     apiKeyPepper: env.API_KEY_PEPPER || null,
     sessionSecret: env.SESSION_SECRET || null,
     corsOrigin: env.CORS_ORIGIN || null,
-
     aiProvider: env.AI_PROVIDER || (env.NODE_ENV === 'production' ? 'none' : 'demo'),
     openaiApiKey: env.OPENAI_API_KEY || null,
-
     providerChatModel: env.PROVIDER_CHAT_MODEL || 'gpt-5.6-luna',
     providerCodingModel: env.PROVIDER_CODING_MODEL || 'gpt-5.6-sol',
     providerImageModel: env.PROVIDER_IMAGE_MODEL || 'gpt-image-2.5-flare',
     providerBuilderModel: env.PROVIDER_BUILDER_MODEL || 'gpt-5.6-sol',
-
     zopayoApiKey: env.ZOPAYO_API_KEY || null,
     zopayoSuccessUrl: env.ZOPAYO_SUCCESS_URL || null,
     zopayoErrorUrl: env.ZOPAYO_ERROR_URL || null,
@@ -47,19 +52,20 @@ export function validateProductionConfig(config) {
     return !config[key];
   });
 
-  if (config.aiProvider === 'openai' && !config.openaiApiKey) {
-    missing.push('OPENAI_API_KEY');
-  }
-
+  if (config.aiProvider === 'openai' && !config.openaiApiKey) missing.push('OPENAI_API_KEY');
   if (!config.corsOrigin) missing.push('CORS_ORIGIN');
-
-  if (!['none', 'openai'].includes(config.aiProvider)) {
-    missing.push('AI_PROVIDER');
-  }
-
+  if (!['none', 'openai'].includes(config.aiProvider)) missing.push('AI_PROVIDER');
   if (!config.zopayoApiKey) missing.push('ZOPAYO_API_KEY');
   if (!config.zopayoSuccessUrl) missing.push('ZOPAYO_SUCCESS_URL');
   if (!config.zopayoErrorUrl) missing.push('ZOPAYO_ERROR_URL');
+
+  if (config.zopayoSuccessUrl && !isHttpsUrl(config.zopayoSuccessUrl)) {
+    missing.push('ZOPAYO_SUCCESS_URL_HTTPS');
+  }
+
+  if (config.zopayoErrorUrl && !isHttpsUrl(config.zopayoErrorUrl)) {
+    missing.push('ZOPAYO_ERROR_URL_HTTPS');
+  }
 
   if (missing.length) {
     throw new Error(`Missing production configuration: ${[...new Set(missing)].join(', ')}`);
