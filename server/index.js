@@ -19,6 +19,7 @@ import { createProvider } from './providers/index.js';
 import { requireDeveloperSession } from './middleware/developer-session.js';
 import createApiKeysRouter from './routes/api-keys.js';
 import createBillingRouter from './routes/billing.js';
+import { createZopayoProvider } from './payments/zopayo.js';
 import { notFound, errorHandler } from './middleware/errors.js';
 
 const config = loadConfig();
@@ -78,9 +79,12 @@ const billingService = db
   ? createBillingService(repositories.billing)
   : null;
 
+const zopayo = createZopayoProvider(config);
+
 app.use('/api/billing', createBillingRouter({
   billingService,
-  sessionMiddleware
+  sessionMiddleware,
+  zopayo
 }));
 
 // Stable public 4N DEV model IDs. Provider model IDs stay private inside Core.
