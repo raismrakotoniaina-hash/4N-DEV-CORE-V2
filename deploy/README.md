@@ -20,7 +20,7 @@ Store production variables outside the repository at:
 
 Protect the file:
 
-chmod 600 /etc/4n-dev-core/core.env
+chmod 640 /etc/4n-dev-core/core.env
 chown root:4ndev /etc/4n-dev-core/core.env
 
 Never commit production secrets.
@@ -28,8 +28,10 @@ Never commit production secrets.
 ## First deployment
 
 1. Run `deploy/scripts/install.sh` as root.
-2. Create `/etc/4n-dev-core/core.env` with production values.
-3. Run `deploy/scripts/deploy.sh`.
+2. Use `deploy/core.env.example` as the template and create `/etc/4n-dev-core/core.env`.
+3. Set unique production secrets for `API_KEY_PEPPER`, `SESSION_SECRET`, and the Zopayo webhook secret.
+4. Keep `AI_PROVIDER=none` until the real AI provider credentials and pricing are configured.
+5. Run `deploy/scripts/deploy.sh`.
 4. Install `deploy/systemd/4n-dev-core.service` into `/etc/systemd/system/`.
 5. Install `deploy/systemd/4n-dev-core-backup.service` and `deploy/systemd/4n-dev-core-backup.timer`.
 6. Install `deploy/nginx/4n-dev-core.conf` into `/etc/nginx/sites-available/`.
