@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { loadConfig } from './config/env.js';
+import { loadConfig, validateProductionConfig } from './config/env.js';
 import { requestId } from './middleware/request-id.js';
 import createV1Router from './routes/v1.js';
 import createAuthRouter from './routes/auth.js';
@@ -23,13 +23,17 @@ import { createZopayoProvider } from './payments/zopayo.js';
 import { notFound, errorHandler } from './middleware/errors.js';
 
 const config = loadConfig();
+validateProductionConfig(config);
+
 const app = express();
 
 app.disable('x-powered-by');
+
 app.use(cors({
   origin: config.corsOrigin || true,
   credentials: true
 }));
+
 app.use(express.json({ limit: '1mb' }));
 app.use(requestId);
 
@@ -43,6 +47,7 @@ app.get('/health', (_req, res) => {
 });
 
 const db = createDbPool(config.databaseUrl);
+
 const repositories = db ? {
   developers: createDevelopersRepository(db),
   sessions: createSessionsRepository(db),
@@ -102,8 +107,14 @@ const providerModelCatalog = {
 };
 
 const provider = createProvider(config);
+
 const aiService = provider && creditsService
-  ? createAiService({ provider, creditsService, modelCatalog, providerModelCatalog })
+  ? createAiService({
+      provider,
+      creditsService,
+      modelCatalog,
+      providerModelCatalog
+    })
   : null;
 
 app.use('/v1', createV1Router({
@@ -118,4 +129,28 @@ app.use('/v1', createV1Router({
 app.use(notFound);
 app.use(errorHandler);
 
-export { app, config };
+const server = app.listen(config.port, () => {
+  console.log(`4N DEV Core API listening on port ${config.port}`);
+});
+
+function shutdown(signal) {
+  console.log(`Received ${signal}; shutting down gracefully.`);
+
+  server.close(async () => {
+    if (db) {
+      await db.end();
+    }
+
+    process.exit(0);
+  });
+
+  setTimeout(() => {
+    console.error('Forced shutdown after timeout.');
+    process.exit(1);
+  }, 10_000).unref();
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+
+export { app, config, server };
