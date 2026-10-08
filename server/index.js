@@ -10,6 +10,7 @@ import { createSessionsRepository } from './db/repositories/sessions.js';
 import { createApiKeyRepository } from './db/repositories/api-keys.js';
 import { createCreditsRepository } from './db/repositories/credits.js';
 import { createUsageRepository } from './db/repositories/usage.js';
+import { createPricingRepository } from './db/repositories/pricing.js';
 import { createCreditsService } from './services/credits-service.js';
 import { createAiService } from './services/ai-service.js';
 import { createProvider } from './providers/index.js';
@@ -43,7 +44,8 @@ const repositories = db ? {
   sessions: createSessionsRepository(db),
   apiKeys: createApiKeyRepository(db),
   credits: createCreditsRepository(db),
-  usage: createUsageRepository(db)
+  usage: createUsageRepository(db),
+  pricing: createPricingRepository(db)
 } : null;
 
 app.use('/api/auth', createAuthRouter({
@@ -64,7 +66,9 @@ app.use('/api/keys', createApiKeysRouter({
   sessionMiddleware
 }));
 
-const creditsService = db ? createCreditsService(repositories.credits, repositories.usage) : null;
+const creditsService = db
+  ? createCreditsService(repositories.credits, repositories.usage, repositories.pricing)
+  : null;
 
 // Stable public 4N DEV model IDs. Provider model IDs stay private inside Core.
 const modelCatalog = [
