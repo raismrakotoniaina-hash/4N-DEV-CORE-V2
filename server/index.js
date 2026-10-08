@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { loadConfig, validateProductionConfig } from './config/env.js';
 import { requestId } from './middleware/request-id.js';
+import { accessLog } from './middleware/access-log.js';
 import createV1Router from './routes/v1.js';
 import createAuthRouter from './routes/auth.js';
 import { createDbPool } from './db/client.js';
@@ -16,7 +17,6 @@ import { createCreditsService } from './services/credits-service.js';
 import { createBillingService } from './services/billing-service.js';
 import { createAiService } from './services/ai-service.js';
 import { createProvider } from './providers/index.js';
-import { requireDeveloperSession } from './middleware/developer-session.js';
 import createApiKeysRouter from './routes/api-keys.js';
 import createBillingRouter from './routes/billing.js';
 import { createZopayoProvider } from './payments/zopayo.js';
@@ -36,14 +36,40 @@ app.use(cors({
 
 app.use(express.json({ limit: '1mb' }));
 app.use(requestId);
+app.use(accessLog);
 
 app.get('/health', (_req, res) => {
-  res.json({
+  res.status(200).json({
     success: true,
     name: '4N DEV Core API',
     status: 'online',
     version: '2.0.0'
   });
+});
+
+app.get('/ready', async (_req, res) => {
+  if (!db) {
+    return res.status(503).json({
+      success: false,
+      status: 'not_ready',
+      reason: 'database_not_configured'
+    });
+  }
+
+  try {
+    await db.query('SELECT 1');
+    return res.status(200).json({
+      success: true,
+      status: 'ready',
+      database: 'ok'
+    });
+  } catch (_error) {
+    return res.status(503).json({
+      success: false,
+      status: 'not_ready',
+      database: 'error'
+    });
+  }
 });
 
 const db = createDbPool(config.databaseUrl, {
@@ -133,11 +159,19 @@ app.use(notFound);
 app.use(errorHandler);
 
 const server = app.listen(config.port, () => {
-  console.log(`4N DEV Core API listening on port ${config.port}`);
+  console.log(JSON.stringify({
+    type: 'server_started',
+    name: '4N DEV Core API',
+    port: config.port,
+    environment: config.nodeEnv
+  }));
 });
 
 function shutdown(signal) {
-  console.log(`Received ${signal}; shutting down gracefully.`);
+  console.log(JSON.stringify({
+    type: 'server_shutdown',
+    signal
+  }));
 
   server.close(async () => {
     if (db) {
@@ -148,7 +182,9 @@ function shutdown(signal) {
   });
 
   setTimeout(() => {
-    console.error('Forced shutdown after timeout.');
+    console.error(JSON.stringify({
+      type: 'server_shutdown_timeout'
+    }));
     process.exit(1);
   }, 10_000).unref();
 }
