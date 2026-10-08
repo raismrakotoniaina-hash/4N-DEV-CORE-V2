@@ -9,9 +9,10 @@ export function loadConfig(env = process.env) {
     sessionSecret: env.SESSION_SECRET || null,
     corsOrigin: env.CORS_ORIGIN || null,
     aiProvider: env.AI_PROVIDER || (env.NODE_ENV === 'production' ? 'none' : 'demo'),
-    chatModel: env.CORE_CHAT_MODEL || 'demo-chat',
-    codingModel: env.CORE_CODING_MODEL || 'demo-coding',
-    imageModel: env.CORE_IMAGE_MODEL || 'demo-image',
+    openaiApiKey: env.OPENAI_API_KEY || null,
+    chatModel: env.CORE_CHAT_MODEL || 'gpt-5.6-luna',
+    codingModel: env.CORE_CODING_MODEL || 'gpt-5.6-sol',
+    imageModel: env.CORE_IMAGE_MODEL || 'gpt-image-2.5-flare'
   };
 }
 
