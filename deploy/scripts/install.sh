@@ -18,6 +18,9 @@ id 4ndev >/dev/null 2>&1 || useradd --system --create-home --shell /usr/sbin/nol
 
 mkdir -p /opt/4n-dev-core /etc/4n-dev-core /var/backups/4n-dev-core
 chown -R 4ndev:4ndev /opt/4n-dev-core
-chmod 700 /etc/4n-dev-core /var/backups/4n-dev-core
+chown root:4ndev /etc/4n-dev-core /var/backups/4n-dev-core
+chmod 750 /etc/4n-dev-core
+chmod 700 /var/backups/4n-dev-core
 
 echo "Base VPS packages and service user are ready."
+echo "Create /etc/4n-dev-core/core.env with NODE_ENV=production before deployment."
