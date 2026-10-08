@@ -8,6 +8,10 @@ export function loadConfig(env = process.env) {
     apiKeyPepper: env.API_KEY_PEPPER || null,
     sessionSecret: env.SESSION_SECRET || null,
     corsOrigin: env.CORS_ORIGIN || null,
+    aiProvider: env.AI_PROVIDER || (env.NODE_ENV === 'production' ? 'none' : 'demo'),
+    chatModel: env.CORE_CHAT_MODEL || 'demo-chat',
+    codingModel: env.CORE_CODING_MODEL || 'demo-coding',
+    imageModel: env.CORE_IMAGE_MODEL || 'demo-image',
   };
 }
 
