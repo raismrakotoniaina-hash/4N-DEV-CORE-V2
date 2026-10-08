@@ -66,15 +66,23 @@ app.use('/api/keys', createApiKeysRouter({
 
 const creditsService = db ? createCreditsService(repositories.credits, repositories.usage) : null;
 
+// Stable public 4N DEV model IDs. Provider model IDs stay private inside Core.
 const modelCatalog = [
-  { id: config.chatModel, service: 'chat', status: 'active' },
-  { id: config.codingModel, service: 'coding', status: 'active' },
-  { id: config.imageModel, service: 'image', status: 'active' }
+  { id: '4n-chat', service: 'chat', status: 'active' },
+  { id: '4n-code', service: 'coding', status: 'active' },
+  { id: '4n-image', service: 'image', status: 'active' }
 ];
+
+const providerModelCatalog = {
+  '4n-chat': config.providerChatModel,
+  '4n-code': config.providerCodingModel,
+  '4n-image': config.providerImageModel,
+  '4n-builder': config.providerBuilderModel
+};
 
 const provider = createProvider(config);
 const aiService = provider && creditsService
-  ? createAiService({ provider, creditsService, modelCatalog })
+  ? createAiService({ provider, creditsService, modelCatalog, providerModelCatalog })
   : null;
 
 app.use('/v1', createV1Router({
