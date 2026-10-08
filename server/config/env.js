@@ -76,6 +76,7 @@ export function validateProductionConfig(config) {
 
   if (!['none', 'openai'].includes(config.aiProvider)) missing.push('AI_PROVIDER');
   if (!config.zopayoApiKey) missing.push('ZOPAYO_API_KEY');
+  if (!config.zopayoWebhookSecret) missing.push('ZOPAYO_WEBHOOK_SECRET');
   if (!config.zopayoSuccessUrl) missing.push('ZOPAYO_SUCCESS_URL');
   if (!config.zopayoErrorUrl) missing.push('ZOPAYO_ERROR_URL');
 
