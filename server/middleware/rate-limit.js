@@ -1,8 +1,14 @@
 const buckets = new Map();
 
-export function createRateLimiter({ windowMs = 60_000, max = 60 } = {}) {
+function cleanupExpired(now) {
+  for (const [identity, bucket] of buckets) {
+    if (now >= bucket.resetAt) buckets.delete(identity);
+  }
+}
+
+export function createRateLimiter({ windowMs = 60_000, max = 60, key = null } = {}) {
   return (req, res, next) => {
-    const identity = req.auth?.apiKeyId || req.ip || 'anonymous';
+    const identity = key ? key(req) : req.auth?.apiKeyId || req.ip || 'anonymous';
     const now = Date.now();
     let bucket = buckets.get(identity);
 
@@ -24,6 +30,7 @@ export function createRateLimiter({ windowMs = 60_000, max = 60 } = {}) {
       });
     }
 
+    if (buckets.size > 10_000) cleanupExpired(now);
     return next();
   };
 }
