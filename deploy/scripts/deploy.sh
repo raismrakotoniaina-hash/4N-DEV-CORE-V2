@@ -4,6 +4,31 @@ set -euo pipefail
 APP_DIR="${APP_DIR:-/opt/4n-dev-core}"
 REPO_URL="${REPO_URL:-https://github.com/raismrakotoniaina-hash/4N-DEV-CORE-V2.git}"
 BRANCH="${BRANCH:-main}"
+ENV_FILE="${ENV_FILE:-/etc/4n-dev-core/core.env}"
+
+if [[ "$(id -u)" -ne 0 ]]; then
+  echo "Run as root."
+  exit 1
+fi
+
+if [[ ! -f "$ENV_FILE" ]]; then
+  echo "Production environment file not found: $ENV_FILE"
+  exit 1
+fi
+
+if [[ ! -r "$ENV_FILE" ]]; then
+  echo "Production environment file is not readable: $ENV_FILE"
+  exit 1
+fi
+
+set -a
+source "$ENV_FILE"
+set +a
+
+if [[ "${NODE_ENV:-}" != "production" ]]; then
+  echo "NODE_ENV=production is required for deployment."
+  exit 1
+fi
 
 if [[ ! -d "$APP_DIR/.git" ]]; then
   git clone --branch "$BRANCH" "$REPO_URL" "$APP_DIR"
@@ -17,7 +42,6 @@ cd "$APP_DIR"
 
 if [[ ! -f package-lock.json ]]; then
   echo "package-lock.json is required for production deployment."
-  echo "Run the GitHub Actions lockfile workflow first, then deploy again."
   exit 1
 fi
 
