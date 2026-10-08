@@ -4,26 +4,30 @@ const BASE_REQUIRED = [
   'SESSION_SECRET'
 ];
 
+function parseBoolean(value, fallback) {
+  if (value === undefined || value === null || value === '') return fallback;
+  return ['1', 'true', 'yes', 'on'].includes(String(value).toLowerCase());
+}
+
 export function loadConfig(env = process.env) {
   return {
     nodeEnv: env.NODE_ENV || 'development',
     port: Number(env.PORT || 10000),
     databaseUrl: env.DATABASE_URL || null,
+    dbSsl: parseBoolean(env.DB_SSL, env.NODE_ENV === 'production'),
+    dbSslRejectUnauthorized: parseBoolean(env.DB_SSL_REJECT_UNAUTHORIZED, true),
     apiKeyPepper: env.API_KEY_PEPPER || null,
     sessionSecret: env.SESSION_SECRET || null,
     corsOrigin: env.CORS_ORIGIN || null,
 
-    // AI provider secrets stay server-side and are never returned by the API.
     aiProvider: env.AI_PROVIDER || (env.NODE_ENV === 'production' ? 'none' : 'demo'),
     openaiApiKey: env.OPENAI_API_KEY || null,
 
-    // Private provider routing. Public clients only see stable 4N model IDs.
     providerChatModel: env.PROVIDER_CHAT_MODEL || 'gpt-5.6-luna',
     providerCodingModel: env.PROVIDER_CODING_MODEL || 'gpt-5.6-sol',
     providerImageModel: env.PROVIDER_IMAGE_MODEL || 'gpt-image-2.5-flare',
     providerBuilderModel: env.PROVIDER_BUILDER_MODEL || 'gpt-5.6-sol',
 
-    // Zopayo payment configuration. Secrets remain server-side.
     zopayoApiKey: env.ZOPAYO_API_KEY || null,
     zopayoSuccessUrl: env.ZOPAYO_SUCCESS_URL || null,
     zopayoErrorUrl: env.ZOPAYO_ERROR_URL || null,
