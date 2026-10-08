@@ -1,9 +1,11 @@
 import { Router } from 'express';
-import { createApiKey, persistApiKey } from '../services/api-key-service.js';
+import { persistApiKey } from '../services/api-key-service.js';
+import { requireSameOrigin } from '../middleware/csrf.js';
 
-export function createApiKeysRouter({ apiKeyRepository, apiKeyPepper, sessionMiddleware }) {
+export function createApiKeysRouter({ apiKeyRepository, apiKeyPepper, sessionMiddleware, corsOrigin }) {
   const router = Router();
   router.use(sessionMiddleware);
+  router.use(requireSameOrigin({ allowedOrigin: corsOrigin }));
 
   router.get('/', async (req, res, next) => {
     try {
