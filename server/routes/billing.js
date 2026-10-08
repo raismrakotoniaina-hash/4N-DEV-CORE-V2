@@ -1,10 +1,12 @@
 import express from 'express';
+import { requireSameOrigin } from '../middleware/csrf.js';
 
 const PAYMENT_PROVIDER = 'zopayo';
 
-export default function createBillingRouter({ billingService, sessionMiddleware, zopayo }) {
+export default function createBillingRouter({ billingService, sessionMiddleware, zopayo, corsOrigin }) {
   const router = express.Router();
   router.use(sessionMiddleware);
+  router.use(requireSameOrigin({ allowedOrigin: corsOrigin }));
 
   router.get('/packages', async (req, res, next) => {
     try {
