@@ -11,15 +11,15 @@
     "db:migrate": "node server/db/migrate.js"
   },
   "dependencies": {
-    "@vitejs/plugin-react": "latest",
-    "vite": "latest",
-    "react": "latest",
-    "react-dom": "latest",
-    "lucide-react": "latest",
-    "express": "latest",
-    "cors": "latest",
-    "pg": "latest",
-    "openai": "latest"
+    "@vitejs/plugin-react": "6.1.2",
+    "vite": "8.0.16",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "lucide-react": "0.563.0",
+    "express": "5.2.1",
+    "cors": "2.8.6",
+    "pg": "8.16.3",
+    "openai": "7.17.0"
   },
   "devDependencies": {}
 }
