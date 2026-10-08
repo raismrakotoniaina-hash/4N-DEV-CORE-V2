@@ -1,3 +1,5 @@
+import crypto from 'node:crypto';
+
 function asNumber(value) {
   const number = Number(value);
   return Number.isFinite(number) ? number : 0;
@@ -5,6 +7,10 @@ function asNumber(value) {
 
 function normalizeCurrency(value) {
   return String(value || '').trim().toUpperCase();
+}
+
+function createPaymentReference() {
+  return `4N-${crypto.randomUUID()}`;
 }
 
 export function createBillingRepository(db) {
@@ -67,7 +73,6 @@ export function createBillingRepository(db) {
       packageCode,
       currency,
       paymentProvider,
-      paymentReference,
       metadata = {}
     }) {
       if (!db) throw new Error('database_not_configured');
@@ -83,6 +88,9 @@ export function createBillingRepository(db) {
         throw error;
       }
 
+      const provider = paymentProvider || 'zopayo';
+      const paymentReference = createPaymentReference();
+
       const result = await db.query(
         `INSERT INTO billing_transactions
          (workspace_id, package_id, amount, currency, credits, payment_provider, payment_reference, metadata)
@@ -94,8 +102,8 @@ export function createBillingRepository(db) {
           packagePrice.amount,
           packagePrice.currency,
           packagePrice.credits,
-          paymentProvider || null,
-          paymentReference || null,
+          provider,
+          paymentReference,
           JSON.stringify(metadata)
         ]
       );
@@ -199,8 +207,6 @@ export function createBillingRepository(db) {
           [transaction.workspace_id]
         );
 
-        let balanceBefore = 0;
-
         if (!accountResult.rows[0]) {
           await client.query(
             `INSERT INTO credit_accounts (workspace_id, balance, reserved_balance)
@@ -220,7 +226,7 @@ export function createBillingRepository(db) {
 
         if (!lockedAccount.rows[0]) throw new Error('credit_account_not_found');
 
-        balanceBefore = asNumber(lockedAccount.rows[0].balance);
+        const balanceBefore = asNumber(lockedAccount.rows[0].balance);
         const credits = asNumber(transaction.credits);
         const balanceAfter = balanceBefore + credits;
 
