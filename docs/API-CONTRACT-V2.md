@@ -78,7 +78,7 @@ Purpose: general conversational AI.
 
 ```json
 {
-  "model": "<CHAT_MODEL>",
+  "model": "4n-chat",
   "messages": [
     {
       "role": "user",
@@ -109,7 +109,7 @@ The final production model allow-list is server-controlled.
   "success": true,
   "request_id": "<REQUEST_ID>",
   "service": "chat",
-  "model": "<CHAT_MODEL>",
+  "model": "4n-chat",
   "usage": {
     "credits": 1,
     "input_tokens": 120,
@@ -132,7 +132,7 @@ Purpose: coding assistance, code generation and technical reasoning.
 
 ```json
 {
-  "model": "<CODING_MODEL>",
+  "model": "4n-code",
   "prompt": "Create a REST endpoint for user registration.",
   "language": "javascript",
   "max_output_tokens": 3000
@@ -153,7 +153,7 @@ Purpose: coding assistance, code generation and technical reasoning.
   "success": true,
   "request_id": "<REQUEST_ID>",
   "service": "coding",
-  "model": "<CODING_MODEL>",
+  "model": "4n-code",
   "usage": {
     "credits": 8,
     "input_tokens": 200,
@@ -174,7 +174,7 @@ Purpose: image generation.
 
 ```json
 {
-  "model": "<IMAGE_MODEL>",
+  "model": "4n-image",
   "prompt": "A modern futuristic city at night",
   "size": "1024x1024",
   "quality": "standard"
@@ -195,7 +195,7 @@ Purpose: image generation.
   "success": true,
   "request_id": "<REQUEST_ID>",
   "service": "image",
-  "model": "<IMAGE_MODEL>",
+  "model": "4n-image",
   "usage": {
     "credits": 50
   },
@@ -262,7 +262,7 @@ GET /v1/usage?service=chat&limit=50
       {
         "request_id": "<REQUEST_ID>",
         "service": "chat",
-        "model": "<CHAT_MODEL>",
+        "model": "4n-chat",
         "status": "success",
         "credits": 1,
         "created_at": "<ISO_TIMESTAMP>"
@@ -287,7 +287,7 @@ Returns models that the authenticated workspace is allowed to use.
   "data": {
     "models": [
       {
-        "id": "<MODEL_ID>",
+        "id": "4n-chat",
         "service": "chat",
         "status": "active"
       }
@@ -296,7 +296,14 @@ Returns models that the authenticated workspace is allowed to use.
 }
 ```
 
-Model IDs are intentionally not hard-coded in this architecture document.
+The public model IDs are stable 4N DEV Core identifiers:
+- `4n-chat` — conversational AI
+- `4n-code` — coding and technical assistance
+- `4n-image` — image generation
+- `4n-builder` — reserved for the Builder service when that public service is released
+- `4n-reasoning` — future reasoning service, not enabled initially
+
+Provider names and provider-specific model IDs are internal Core configuration and must never be exposed through this API.
 
 ## 10. HTTP status codes
 
