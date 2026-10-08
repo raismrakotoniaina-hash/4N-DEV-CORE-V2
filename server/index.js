@@ -103,7 +103,8 @@ const sessionMiddleware = requireDeveloperSession({
 app.use('/api/keys', createApiKeysRouter({
   apiKeyRepository: repositories?.apiKeys,
   apiKeyPepper: config.apiKeyPepper,
-  sessionMiddleware
+  sessionMiddleware,
+  corsOrigin: config.corsOrigin
 }));
 
 const creditsService = db
@@ -119,7 +120,8 @@ const zopayo = createZopayoProvider(config);
 app.use('/api/billing', createBillingRouter({
   billingService,
   sessionMiddleware,
-  zopayo
+  zopayo,
+  corsOrigin: config.corsOrigin
 }));
 
 const modelCatalog = [
