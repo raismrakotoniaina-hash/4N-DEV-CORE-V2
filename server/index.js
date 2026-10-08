@@ -105,7 +105,8 @@ app.use('/api/keys', createApiKeysRouter({
   apiKeyRepository: repositories?.apiKeys,
   apiKeyPepper: config.apiKeyPepper,
   sessionMiddleware,
-  corsOrigin: config.corsOrigin
+  corsOrigin: config.corsOrigin,
+  zopayoWebhookSecret: config.zopayoWebhookSecret
 }));
 
 const creditsService = db
