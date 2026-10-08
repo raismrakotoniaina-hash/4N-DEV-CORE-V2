@@ -38,7 +38,7 @@ export default function createBillingRouter({ billingService, sessionMiddleware 
 
   router.post('/transactions', async (req, res, next) => {
     try {
-      const { packageCode, currency, paymentProvider, paymentReference, metadata } = req.body || {};
+      const { packageCode, currency, metadata } = req.body || {};
 
       if (!packageCode || !currency) {
         return res.status(400).json({
@@ -48,12 +48,14 @@ export default function createBillingRouter({ billingService, sessionMiddleware 
         });
       }
 
+      // Payment provider and reference are server-controlled.
+      // Clients must never be able to redirect billing to an arbitrary provider
+      // or choose a reference that could collide with another transaction.
       const transaction = await billingService.createPendingTransaction({
         workspaceId: req.workspace.id,
         packageCode,
         currency,
-        paymentProvider: paymentProvider || 'zopayo',
-        paymentReference,
+        paymentProvider: 'zopayo',
         metadata: metadata && typeof metadata === 'object' ? metadata : {}
       });
 
