@@ -34,12 +34,40 @@ Never commit production secrets.
 5. Install `deploy/systemd/4n-dev-core-backup.service` and `deploy/systemd/4n-dev-core-backup.timer`.
 6. Install `deploy/nginx/4n-dev-core.conf` into `/etc/nginx/sites-available/`.
 7. Enable the Nginx site.
-8. Configure HTTPS with a trusted ACME certificate.
-9. Verify `/health` through HTTPS.
+8. Confirm the DNS A/AAAA record for the Core domain points to the VPS and that TCP ports 80 and 443 are reachable.
+9. Run `deploy/scripts/setup-tls.sh <core-domain> <email>` as root. The script obtains the Let's Encrypt certificate through the HTTP-01 webroot challenge, installs the HTTPS Nginx configuration, reloads Nginx, and runs `certbot renew --dry-run`.
+10. Verify `/health` through HTTPS.
 
 PostgreSQL should remain private and must not be exposed directly to the public Internet.
 
 The Node service runs as the dedicated `4ndev` system user, not root.
+
+
+## HTTPS/TLS
+
+The production TLS flow uses Nginx as the public HTTPS reverse proxy and Let's Encrypt certificates managed by Certbot.
+
+The repository intentionally keeps the initial Nginx configuration HTTP-only so the ACME HTTP-01 challenge can complete before certificate files exist. The TLS configuration is stored separately in:
+
+`deploy/nginx/4n-dev-core-tls.conf`
+
+After the certificate is issued, `deploy/scripts/setup-tls.sh` activates the HTTPS configuration and redirects normal HTTP traffic to HTTPS.
+
+Requirements before running the TLS setup:
+
+- The Core DNS record must resolve to the VPS.
+- TCP port 80 must be reachable from the Internet for HTTP-01 validation.
+- TCP port 443 must be allowed for production HTTPS.
+- Nginx must already be serving the Core HTTP site.
+- The certificate email address must be valid and controlled by the operator.
+
+Certbot's renewal configuration is managed by the installed Certbot package. Always verify renewal with:
+
+`certbot renew --dry-run`
+
+Do not manually copy or commit certificate/private-key files. They belong under `/etc/letsencrypt/` on the VPS.
+
+Once HTTPS is active, production application URLs should use `https://`, including the Zopayo return URLs and webhook endpoint.
 
 ## PostgreSQL backup policy
 
