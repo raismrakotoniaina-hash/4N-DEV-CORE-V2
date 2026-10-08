@@ -11,6 +11,8 @@ import { createApiKeyRepository } from './db/repositories/api-keys.js';
 import { createCreditsRepository } from './db/repositories/credits.js';
 import { createUsageRepository } from './db/repositories/usage.js';
 import { createCreditsService } from './services/credits-service.js';
+import { createAiService } from './services/ai-service.js';
+import { createDemoProvider } from './providers/demo.js';
 import { requireDeveloperSession } from './middleware/developer-session.js';
 import createApiKeysRouter from './routes/api-keys.js';
 import { notFound, errorHandler } from './middleware/errors.js';
@@ -64,11 +66,25 @@ app.use('/api/keys', createApiKeysRouter({
 
 const developmentApiKeyRecords = [];
 const creditsService = db ? createCreditsService(repositories.credits, repositories.usage) : null;
+
+const modelCatalog = [
+  { id: config.chatModel, service: 'chat', status: 'active' },
+  { id: config.codingModel, service: 'coding', status: 'active' },
+  { id: config.imageModel, service: 'image', status: 'active' }
+];
+
+const provider = config.aiProvider === 'demo' ? createDemoProvider() : null;
+const aiService = provider && creditsService
+  ? createAiService({ provider, creditsService, modelCatalog })
+  : null;
+
 app.use('/v1', createV1Router({
   apiKeyRecords: developmentApiKeyRecords,
   apiKeyPepper: config.apiKeyPepper,
   apiKeyRepository: repositories?.apiKeys,
-  creditsService
+  creditsService,
+  aiService,
+  modelCatalog
 }));
 
 app.use(notFound);
