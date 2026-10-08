@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { createRateLimiter } from '../middleware/rate-limit.js';
 import { hashPassword, verifyPassword } from '../security/password.js';
 import {
   createSessionToken,
@@ -76,7 +77,9 @@ export function createAuthRouter({ db, sessionSecret, secureCookies = false }) {
   const developers = db.developers;
   const sessions = db.sessions;
 
-  router.post('/register', async (req, res, next) => {
+  const authRateLimit = createRateLimiter({ windowMs: 15 * 60_000, max: 10, key: (req) => `auth:${req.ip || 'anonymous'}` });
+
+  router.post('/register', authRateLimit, async (req, res, next) => {
     try {
       const email = normalizeEmail(req.body?.email);
       const fullName = normalizeName(req.body?.fullName);
@@ -146,7 +149,7 @@ export function createAuthRouter({ db, sessionSecret, secureCookies = false }) {
     }
   });
 
-  router.post('/login', async (req, res, next) => {
+  router.post('/login', authRateLimit, async (req, res, next) => {
     try {
       const email = normalizeEmail(req.body?.email);
       const password = String(req.body?.password || '');
