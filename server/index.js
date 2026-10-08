@@ -46,7 +46,11 @@ app.get('/health', (_req, res) => {
   });
 });
 
-const db = createDbPool(config.databaseUrl);
+const db = createDbPool(config.databaseUrl, {
+  ssl: config.dbSsl
+    ? { rejectUnauthorized: config.dbSslRejectUnauthorized }
+    : undefined
+});
 
 const repositories = db ? {
   developers: createDevelopersRepository(db),
@@ -92,7 +96,6 @@ app.use('/api/billing', createBillingRouter({
   zopayo
 }));
 
-// Stable public 4N DEV model IDs. Provider model IDs stay private inside Core.
 const modelCatalog = [
   { id: '4n-chat', service: 'chat', status: 'active' },
   { id: '4n-code', service: 'coding', status: 'active' },
