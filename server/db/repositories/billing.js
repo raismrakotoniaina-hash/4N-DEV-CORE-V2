@@ -289,6 +289,20 @@ export function createBillingRepository(db) {
       }
     },
 
+    async updateCheckoutMetadata({ transactionId, checkout }) {
+      if (!db) throw new Error('database_not_configured');
+
+      const result = await db.query(
+        `UPDATE billing_transactions
+         SET metadata = metadata || $1::jsonb
+         WHERE id = $2
+         RETURNING *`,
+        [JSON.stringify({ checkout }), transactionId]
+      );
+
+      return result.rows[0] || null;
+    },
+
     async updateStatus({ transactionId, status, metadata = {} }) {
       if (!db) throw new Error('database_not_configured');
 
