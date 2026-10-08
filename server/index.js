@@ -11,11 +11,14 @@ import { createApiKeyRepository } from './db/repositories/api-keys.js';
 import { createCreditsRepository } from './db/repositories/credits.js';
 import { createUsageRepository } from './db/repositories/usage.js';
 import { createPricingRepository } from './db/repositories/pricing.js';
+import { createBillingRepository } from './db/repositories/billing.js';
 import { createCreditsService } from './services/credits-service.js';
+import { createBillingService } from './services/billing-service.js';
 import { createAiService } from './services/ai-service.js';
 import { createProvider } from './providers/index.js';
 import { requireDeveloperSession } from './middleware/developer-session.js';
 import createApiKeysRouter from './routes/api-keys.js';
+import createBillingRouter from './routes/billing.js';
 import { notFound, errorHandler } from './middleware/errors.js';
 
 const config = loadConfig();
@@ -45,7 +48,8 @@ const repositories = db ? {
   apiKeys: createApiKeyRepository(db),
   credits: createCreditsRepository(db),
   usage: createUsageRepository(db),
-  pricing: createPricingRepository(db)
+  pricing: createPricingRepository(db),
+  billing: createBillingRepository(db)
 } : null;
 
 app.use('/api/auth', createAuthRouter({
@@ -69,6 +73,15 @@ app.use('/api/keys', createApiKeysRouter({
 const creditsService = db
   ? createCreditsService(repositories.credits, repositories.usage, repositories.pricing)
   : null;
+
+const billingService = db
+  ? createBillingService(repositories.billing)
+  : null;
+
+app.use('/api/billing', createBillingRouter({
+  billingService,
+  sessionMiddleware
+}));
 
 // Stable public 4N DEV model IDs. Provider model IDs stay private inside Core.
 const modelCatalog = [
