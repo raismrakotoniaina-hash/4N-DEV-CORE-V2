@@ -12,7 +12,7 @@ import { createCreditsRepository } from './db/repositories/credits.js';
 import { createUsageRepository } from './db/repositories/usage.js';
 import { createCreditsService } from './services/credits-service.js';
 import { createAiService } from './services/ai-service.js';
-import { createDemoProvider } from './providers/demo.js';
+import { createProvider } from './providers/index.js';
 import { requireDeveloperSession } from './middleware/developer-session.js';
 import createApiKeysRouter from './routes/api-keys.js';
 import { notFound, errorHandler } from './middleware/errors.js';
@@ -64,7 +64,6 @@ app.use('/api/keys', createApiKeysRouter({
   sessionMiddleware
 }));
 
-const developmentApiKeyRecords = [];
 const creditsService = db ? createCreditsService(repositories.credits, repositories.usage) : null;
 
 const modelCatalog = [
@@ -73,13 +72,13 @@ const modelCatalog = [
   { id: config.imageModel, service: 'image', status: 'active' }
 ];
 
-const provider = config.aiProvider === 'demo' ? createDemoProvider() : null;
+const provider = createProvider(config);
 const aiService = provider && creditsService
   ? createAiService({ provider, creditsService, modelCatalog })
   : null;
 
 app.use('/v1', createV1Router({
-  apiKeyRecords: developmentApiKeyRecords,
+  apiKeyRecords: [],
   apiKeyPepper: config.apiKeyPepper,
   apiKeyRepository: repositories?.apiKeys,
   creditsService,
