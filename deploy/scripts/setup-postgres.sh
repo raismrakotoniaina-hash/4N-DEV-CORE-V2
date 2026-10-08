@@ -30,6 +30,11 @@ if ! command -v psql >/dev/null 2>&1; then
   exit 1
 fi
 
+if ! command -v runuser >/dev/null 2>&1; then
+  echo "runuser is required."
+  exit 1
+fi
+
 if [[ -z "${DATABASE_URL:-}" && -f "$ENV_FILE" ]]; then
   set -a
   source "$ENV_FILE"
@@ -44,7 +49,7 @@ fi
 
 DB_PASSWORD="${DB_PASSWORD:-}"
 if [[ -z "$DB_PASSWORD" ]]; then
-  DB_PASSWORD="$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | head -c 32)"
+  DB_PASSWORD="$(openssl rand -hex 24)"
 fi
 
 if [[ -z "$DB_PASSWORD" ]]; then
@@ -53,25 +58,25 @@ if [[ -z "$DB_PASSWORD" ]]; then
 fi
 
 run_psql() {
-  sudo -u postgres psql --set=ON_ERROR_STOP=1 "$@"
+  runuser -u postgres -- psql --set=ON_ERROR_STOP=1 "$@"
 }
 
 ROLE_EXISTS="$(run_psql -tAc "SELECT 1 FROM pg_roles WHERE rolname = '$DB_USER'")"
 if [[ "$ROLE_EXISTS" != "1" ]]; then
-  run_psql -c "CREATE ROLE \"\$DB_USER\" LOGIN PASSWORD '$DB_PASSWORD';"
+  run_psql -c "CREATE ROLE \"$DB_USER\" LOGIN PASSWORD '$DB_PASSWORD';"
 else
-  run_psql -c "ALTER ROLE \"\$DB_USER\" WITH LOGIN PASSWORD '$DB_PASSWORD';"
+  run_psql -c "ALTER ROLE \"$DB_USER\" WITH LOGIN PASSWORD '$DB_PASSWORD';"
 fi
 
 DB_EXISTS="$(run_psql -tAc "SELECT 1 FROM pg_database WHERE datname = '$DB_NAME'")"
 if [[ "$DB_EXISTS" != "1" ]]; then
-  run_psql -c "CREATE DATABASE \"\$DB_NAME\" OWNER \"\$DB_USER\";"
+  run_psql -c "CREATE DATABASE \"$DB_NAME\" OWNER \"$DB_USER\";"
 else
-  run_psql -c "ALTER DATABASE \"\$DB_NAME\" OWNER TO \"\$DB_USER\";"
+  run_psql -c "ALTER DATABASE \"$DB_NAME\" OWNER TO \"$DB_USER\";"
 fi
 
-run_psql -c "REVOKE ALL ON DATABASE \"\$DB_NAME\" FROM PUBLIC;"
-run_psql -c "GRANT CONNECT ON DATABASE \"\$DB_NAME\" TO \"\$DB_USER\";"
+run_psql -c "REVOKE ALL ON DATABASE \"$DB_NAME\" FROM PUBLIC;"
+run_psql -c "GRANT CONNECT ON DATABASE \"$DB_NAME\" TO \"$DB_USER\";"
 
 DATABASE_URL="postgresql://$DB_USER:$DB_PASSWORD@127.0.0.1:5432/$DB_NAME"
 
@@ -79,12 +84,14 @@ mkdir -p /etc/4n-dev-core
 if [[ -f "$ENV_FILE" ]]; then
   chmod 640 "$ENV_FILE"
   chown root:4ndev "$ENV_FILE"
-  printf '\n# PostgreSQL configured by setup-postgres.sh\nDATABASE_URL=%s\n' "$DATABASE_URL" >> "$ENV_FILE"
+  printf '\n# PostgreSQL configured by setup-postgres.sh\nDATABASE_URL=%s\nDB_SSL=false\nDB_SSL_REJECT_UNAUTHORIZED=true\n' "$DATABASE_URL" >> "$ENV_FILE"
 else
   umask 027
   cat > "$ENV_FILE" <<EOF
 NODE_ENV=production
 DATABASE_URL=$DATABASE_URL
+DB_SSL=false
+DB_SSL_REJECT_UNAUTHORIZED=true
 EOF
   chown root:4ndev "$ENV_FILE"
   chmod 640 "$ENV_FILE"
@@ -94,4 +101,5 @@ echo "PostgreSQL production database is ready."
 echo "Database: $DB_NAME"
 echo "User: $DB_USER"
 echo "DATABASE_URL has been written to $ENV_FILE."
+echo "DB_SSL=false configured for local PostgreSQL."
 echo "The database password is not printed."
