@@ -1,0 +1,15 @@
+[Unit]
+Description=4N DEV Core PostgreSQL backup
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/4n-dev-core/core.env
+ExecStart=/opt/4n-dev-core/deploy/scripts/backup-db.sh
+User=root
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/backups/4n-dev-core
