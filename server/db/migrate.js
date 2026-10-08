@@ -16,7 +16,9 @@ const migrationsDir = path.dirname(fileURLToPath(import.meta.url));
 async function main() {
   const client = new Client({
     connectionString: config.databaseUrl,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined
+    ssl: config.dbSsl
+      ? { rejectUnauthorized: config.dbSslRejectUnauthorized }
+      : undefined
   });
 
   await client.connect();
