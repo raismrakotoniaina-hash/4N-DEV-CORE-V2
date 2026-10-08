@@ -52,7 +52,7 @@ export default function createBillingRouter({ billingService, sessionMiddleware 
         workspaceId: req.workspace.id,
         packageCode,
         currency,
-        paymentProvider,
+        paymentProvider: paymentProvider || 'zopayo',
         paymentReference,
         metadata: metadata && typeof metadata === 'object' ? metadata : {}
       });
