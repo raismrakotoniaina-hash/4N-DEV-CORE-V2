@@ -46,14 +46,17 @@ function validateMaxOutput(value, max) {
   }
 }
 
-export function createAiService({ provider, creditsService, modelCatalog = [] }) {
+export function createAiService({ provider, creditsService, modelCatalog = [], providerModelCatalog = {} }) {
   const resolveModel = (service, requested) => {
     const candidates = modelCatalog.filter((item) => item.service === service && item.status === 'active');
-    if (!requested) return candidates[0]?.id || `demo-${service}`;
-    if (candidates.length && !candidates.some((item) => item.id === requested)) {
-      throw serviceError('invalid_model', `Model "${requested}" is not available for ${service}.`);
+    const publicModel = requested || candidates[0]?.id;
+    if (!publicModel) throw serviceError('invalid_model', `No model is configured for ${service}.`);
+    if (!candidates.some((item) => item.id === publicModel)) {
+      throw serviceError('invalid_model', `Model "${publicModel}" is not available for ${service}.`);
     }
-    return requested;
+    const providerModel = providerModelCatalog[publicModel];
+    if (!providerModel) throw serviceError('provider_unavailable', 'The selected Core model is not configured.', 503);
+    return { publicModel, providerModel };
   };
 
   async function charge(req, service, model, credits) {
@@ -91,13 +94,13 @@ export function createAiService({ provider, creditsService, modelCatalog = [] })
         throw serviceError('invalid_parameter', 'temperature must be a number between 0 and 2.');
       }
 
-      const model = resolveModel('chat', input.model);
-      const result = await provider.chat({ ...input, model });
-      await charge(req, 'chat', result.model, COSTS.chat);
+      const { publicModel, providerModel } = resolveModel('chat', input.model);
+      const result = await provider.chat({ ...input, model: providerModel });
+      await charge(req, 'chat', publicModel, COSTS.chat);
 
       return {
         service: 'chat',
-        model: result.model,
+        model: publicModel,
         usage: { credits: COSTS.chat, input_tokens: result.inputTokens, output_tokens: result.outputTokens },
         data: { message: result.message }
       };
@@ -112,13 +115,13 @@ export function createAiService({ provider, creditsService, modelCatalog = [] })
       }
       validateMaxOutput(input.max_output_tokens, LIMITS.coding.output);
 
-      const model = resolveModel('coding', input.model);
-      const result = await provider.coding({ ...input, model });
-      await charge(req, 'coding', result.model, COSTS.coding);
+      const { publicModel, providerModel } = resolveModel('coding', input.model);
+      const result = await provider.coding({ ...input, model: providerModel });
+      await charge(req, 'coding', publicModel, COSTS.coding);
 
       return {
         service: 'coding',
-        model: result.model,
+        model: publicModel,
         usage: { credits: COSTS.coding, input_tokens: result.inputTokens, output_tokens: result.outputTokens },
         data: { output: result.output, language: result.language }
       };
@@ -132,13 +135,13 @@ export function createAiService({ provider, creditsService, modelCatalog = [] })
         throw serviceError('invalid_parameter', 'Image prompt exceeds the 12,000 character limit.');
       }
 
-      const model = resolveModel('image', input.model);
-      const result = await provider.image({ ...input, model });
-      await charge(req, 'image', result.model, COSTS.image);
+      const { publicModel, providerModel } = resolveModel('image', input.model);
+      const result = await provider.image({ ...input, model: providerModel });
+      await charge(req, 'image', publicModel, COSTS.image);
 
       return {
         service: 'image',
-        model: result.model,
+        model: publicModel,
         usage: { credits: COSTS.image },
         data: { images: result.images }
       };
