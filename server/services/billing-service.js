@@ -22,6 +22,10 @@ export function createBillingService(billingRepository) {
       return billingRepository.completeTransaction(options);
     },
 
+    updateCheckoutMetadata(options) {
+      return billingRepository.updateCheckoutMetadata(options);
+    },
+
     updateStatus(options) {
       return billingRepository.updateStatus(options);
     }
