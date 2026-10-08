@@ -26,6 +26,8 @@ if [[ -z "$SSH_PORTS" ]]; then
   exit 1
 fi
 
+SSH_PORT_LIST="$(printf '%s\n' "$SSH_PORTS" | paste -sd, -)"
+
 ufw default deny incoming
 ufw default allow outgoing
 
@@ -39,8 +41,26 @@ ufw allow 80/tcp
 ufw allow 443/tcp
 ufw --force enable
 
+FAIL2BAN_JAIL="/etc/fail2ban/jail.d/4n-dev-core-sshd.local"
+cat > "$FAIL2BAN_JAIL" <<EOF
+[sshd]
+enabled = true
+port = $SSH_PORT_LIST
+backend = systemd
+banaction = ufw
+bantime = 1h
+findtime = 10m
+maxretry = 5
+EOF
+
+chmod 644 "$FAIL2BAN_JAIL"
+
 systemctl enable --now fail2ban
+systemctl restart fail2ban
+
+fail2ban-client status sshd >/dev/null
 
 echo "VPS firewall and fail2ban are enabled."
 echo "Allowed SSH TCP ports: $SSH_PORTS"
 echo "Allowed public services: SSH, HTTP and HTTPS."
+echo "SSH brute-force protection: enabled (5 failures / 10 minutes, 1 hour ban)."
