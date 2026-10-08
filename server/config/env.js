@@ -1,7 +1,8 @@
 const BASE_REQUIRED = [
   'DATABASE_URL',
   'API_KEY_PEPPER',
-  'SESSION_SECRET'
+  'SESSION_SECRET',
+  'CORE_DOMAIN'
 ];
 
 function parseBoolean(value, fallback) {
@@ -17,10 +18,19 @@ function isHttpsUrl(value) {
   }
 }
 
+function isValidDomain(value) {
+  return typeof value === 'string'
+    && value.length <= 253
+    && !value.includes('/')
+    && !value.includes(' ')
+    && /^[a-z0-9.-]+$/i.test(value);
+}
+
 export function loadConfig(env = process.env) {
   return {
     nodeEnv: env.NODE_ENV || 'development',
     port: Number(env.PORT || 10000),
+    coreDomain: env.CORE_DOMAIN || null,
     databaseUrl: env.DATABASE_URL || null,
     dbSsl: parseBoolean(env.DB_SSL, env.NODE_ENV === 'production'),
     dbSslRejectUnauthorized: parseBoolean(env.DB_SSL_REJECT_UNAUTHORIZED, true),
@@ -47,13 +57,23 @@ export function validateProductionConfig(config) {
     const key = {
       DATABASE_URL: 'databaseUrl',
       API_KEY_PEPPER: 'apiKeyPepper',
-      SESSION_SECRET: 'sessionSecret'
+      SESSION_SECRET: 'sessionSecret',
+      CORE_DOMAIN: 'coreDomain'
     }[name];
     return !config[key];
   });
 
+  if (config.coreDomain && !isValidDomain(config.coreDomain)) {
+    missing.push('CORE_DOMAIN_VALID');
+  }
+
   if (config.aiProvider === 'openai' && !config.openaiApiKey) missing.push('OPENAI_API_KEY');
-  if (!config.corsOrigin) missing.push('CORS_ORIGIN');
+  if (!config.corsOrigin) {
+    missing.push('CORS_ORIGIN');
+  } else if (!isHttpsUrl(config.corsOrigin)) {
+    missing.push('CORS_ORIGIN_HTTPS');
+  }
+
   if (!['none', 'openai'].includes(config.aiProvider)) missing.push('AI_PROVIDER');
   if (!config.zopayoApiKey) missing.push('ZOPAYO_API_KEY');
   if (!config.zopayoSuccessUrl) missing.push('ZOPAYO_SUCCESS_URL');
