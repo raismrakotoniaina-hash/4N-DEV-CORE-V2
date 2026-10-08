@@ -10,9 +10,12 @@ export function loadConfig(env = process.env) {
     corsOrigin: env.CORS_ORIGIN || null,
     aiProvider: env.AI_PROVIDER || (env.NODE_ENV === 'production' ? 'none' : 'demo'),
     openaiApiKey: env.OPENAI_API_KEY || null,
-    chatModel: env.CORE_CHAT_MODEL || 'gpt-5.6-luna',
-    codingModel: env.CORE_CODING_MODEL || 'gpt-5.6-sol',
-    imageModel: env.CORE_IMAGE_MODEL || 'gpt-image-2.5-flare'
+
+    // Private provider routing. These values are never returned by the public API.
+    providerChatModel: env.PROVIDER_CHAT_MODEL || 'gpt-5.6-luna',
+    providerCodingModel: env.PROVIDER_CODING_MODEL || 'gpt-5.6-sol',
+    providerImageModel: env.PROVIDER_IMAGE_MODEL || 'gpt-image-2.5-flare',
+    providerBuilderModel: env.PROVIDER_BUILDER_MODEL || 'gpt-5.6-sol'
   };
 }
 
