@@ -14,7 +14,14 @@ else
 fi
 
 cd "$APP_DIR"
-npm ci
+
+if [[ ! -f package-lock.json ]]; then
+  echo "package-lock.json is required for production deployment."
+  echo "Run the GitHub Actions lockfile workflow first, then deploy again."
+  exit 1
+fi
+
+npm ci --omit=dev
 npm run db:migrate
 
 chown -R 4ndev:4ndev "$APP_DIR"
