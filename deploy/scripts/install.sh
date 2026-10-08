@@ -7,7 +7,7 @@ if [[ "$(id -u)" -ne 0 ]]; then
 fi
 
 apt-get update
-apt-get install -y ca-certificates curl git nginx postgresql-client
+apt-get install -y ca-certificates curl git nginx postgresql-client rsync openssh-client
 
 if ! command -v node >/dev/null 2>&1; then
   echo "Node.js 24 is required. Install the supported Node.js 24 runtime before continuing."
