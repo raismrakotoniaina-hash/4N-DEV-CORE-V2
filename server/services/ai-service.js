@@ -1,14 +1,11 @@
-const COSTS = Object.freeze({
-  chat: 1,
-  coding: 8,
-  image: 50
-});
-
 const LIMITS = Object.freeze({
   chat: { input: 12000, output: 1200 },
   coding: { input: 24000, output: 3000 },
   image: { input: 12000 }
 });
+
+const RESERVATION_INPUT_SAFETY_FACTOR = 1.5;
+const CREDITS_PER_USD = 100;
 
 function serviceError(code, message, status = 400) {
   const error = new Error(message);
@@ -46,7 +43,54 @@ function validateMaxOutput(value, max) {
   }
 }
 
-export function createAiService({ provider, creditsService, modelCatalog = [], providerModelCatalog = {} }) {
+function estimateInputTokens(value) {
+  return Math.max(1, Math.ceil(textLength(value) / 4));
+}
+
+function calculateTokenCost(inputTokens, outputTokens, pricing) {
+  const inputRate = Number(pricing?.input_cost_per_1m_usd || 0);
+  const outputRate = Number(pricing?.output_cost_per_1m_usd || 0);
+  const providerCostUsd =
+    (Number(inputTokens) / 1_000_000) * inputRate +
+    (Number(outputTokens) / 1_000_000) * outputRate;
+  const marginMultiplier = Number(pricing?.margin_multiplier || 0);
+  const chargedUsd = providerCostUsd * marginMultiplier;
+
+  return {
+    providerCostUsd,
+    marginMultiplier,
+    chargedUsd,
+    chargedCredits: chargedUsd * CREDITS_PER_USD
+  };
+}
+
+function calculateImageCost(pricing) {
+  const providerCostUsd = Number(pricing?.image_cost_usd || 0);
+  const marginMultiplier = Number(pricing?.margin_multiplier || 0);
+  const chargedUsd = providerCostUsd * marginMultiplier;
+
+  return {
+    providerCostUsd,
+    marginMultiplier,
+    chargedUsd,
+    chargedCredits: chargedUsd * CREDITS_PER_USD
+  };
+}
+
+function positiveReservation(value) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw serviceError('pricing_not_configured', 'Core pricing is not configured for this model.', 503);
+  }
+  return amount;
+}
+
+export function createAiService({
+  provider,
+  creditsService,
+  modelCatalog = [],
+  providerModelCatalog = {}
+}) {
   const resolveModel = (service, requested) => {
     const candidates = modelCatalog.filter((item) => item.service === service && item.status === 'active');
     const publicModel = requested || candidates[0]?.id;
@@ -54,56 +98,162 @@ export function createAiService({ provider, creditsService, modelCatalog = [], p
     if (!candidates.some((item) => item.id === publicModel)) {
       throw serviceError('invalid_model', `Model "${publicModel}" is not available for ${service}.`);
     }
+
     const providerModel = providerModelCatalog[publicModel];
-    if (!providerModel) throw serviceError('provider_unavailable', 'The selected Core model is not configured.', 503);
+    if (!providerModel) {
+      throw serviceError('provider_unavailable', 'The selected Core model is not configured.', 503);
+    }
+
     return { publicModel, providerModel };
   };
 
-  async function charge(req, service, model, credits) {
+  async function getPricing(providerModel, service) {
+    if (provider.id === 'demo') return null;
+
+    const pricing = await creditsService.getPricing({
+      provider: provider.id,
+      providerModel,
+      service
+    });
+
+    if (!pricing) {
+      throw serviceError('pricing_not_configured', 'Core pricing is not configured for this model.', 503);
+    }
+
+    return pricing;
+  }
+
+  async function executeWithBilling(req, {
+    service,
+    publicModel,
+    providerModel,
+    reservationCredits,
+    execute,
+    getActualCharge,
+    buildResponse
+  }) {
     if (!creditsService) {
       throw serviceError('provider_unavailable', 'Core credit service is not configured.', 503);
     }
 
+    if (provider.id === 'demo') {
+      try {
+        const result = await execute();
+        await creditsService.recordNonBillableUsage({
+          workspaceId: req.auth.workspaceId,
+          apiKeyId: req.auth.apiKeyId,
+          service,
+          publicModel,
+          provider: provider.id,
+          providerModel,
+          inputTokens: result.inputTokens || 0,
+          outputTokens: result.outputTokens || 0,
+          requestId: req.requestId
+        });
+        return buildResponse(result, {
+          chargedCredits: 0,
+          chargedUsd: 0
+        });
+      } catch (error) {
+        throw error;
+      }
+    }
+
+    const reservation = await creditsService.reserve({
+      workspaceId: req.auth.workspaceId,
+      apiKeyId: req.auth.apiKeyId,
+      requestId: req.requestId,
+      credits: positiveReservation(reservationCredits),
+      metadata: { service, publicModel }
+    });
+
     try {
-      return await creditsService.charge({
+      const result = await execute();
+      const charge = getActualCharge(result);
+
+      if (charge.chargedCredits > Number(reservation.reserved_credits) + 0.000001) {
+        throw serviceError('billing_reservation_exceeded', 'Actual usage exceeded the reserved credit amount.', 503);
+      }
+
+      await creditsService.settle({
+        reservationId: reservation.id,
         workspaceId: req.auth.workspaceId,
         apiKeyId: req.auth.apiKeyId,
-        service,
-        model,
-        credits,
         requestId: req.requestId,
-        status: 'success'
+        service,
+        publicModel,
+        provider: provider.id,
+        providerModel,
+        inputTokens: result.inputTokens || 0,
+        outputTokens: result.outputTokens || 0,
+        providerCostUsd: charge.providerCostUsd,
+        marginMultiplier: charge.marginMultiplier,
+        chargedUsd: charge.chargedUsd,
+        chargedCredits: charge.chargedCredits
       });
+
+      return buildResponse(result, charge);
     } catch (error) {
-      if (error.code === 'insufficient_credits') {
-        error.status = 402;
-        error.expose = true;
-        error.message = 'Insufficient credits for this request.';
+      try {
+        await creditsService.failReservation({
+          reservationId: reservation.id,
+          workspaceId: req.auth.workspaceId,
+          reason: error.code || 'provider_error'
+        });
+      } catch {
+        // Keep the original provider/billing error as the API result.
       }
       throw error;
     }
   }
 
   return {
-    costs: COSTS,
+    limits: LIMITS,
 
     async chat(req, input) {
       validateMessages(input.messages);
       validateMaxOutput(input.max_output_tokens, LIMITS.chat.output);
-      if (input.temperature !== undefined && (typeof input.temperature !== 'number' || input.temperature < 0 || input.temperature > 2)) {
+
+      if (
+        input.temperature !== undefined &&
+        (typeof input.temperature !== 'number' || input.temperature < 0 || input.temperature > 2)
+      ) {
         throw serviceError('invalid_parameter', 'temperature must be a number between 0 and 2.');
       }
 
       const { publicModel, providerModel } = resolveModel('chat', input.model);
-      const result = await provider.chat({ ...input, model: providerModel });
-      await charge(req, 'chat', publicModel, COSTS.chat);
+      const effectiveMaxOutput = input.max_output_tokens || LIMITS.chat.output;
+      const pricing = await getPricing(providerModel, 'chat');
+      const estimatedInput = Math.ceil(
+        estimateInputTokens(JSON.stringify(input.messages)) * RESERVATION_INPUT_SAFETY_FACTOR
+      );
+      const reservationCharge = pricing
+        ? calculateTokenCost(estimatedInput, effectiveMaxOutput, pricing).chargedCredits
+        : 0;
 
-      return {
+      return executeWithBilling(req, {
         service: 'chat',
-        model: publicModel,
-        usage: { credits: COSTS.chat, input_tokens: result.inputTokens, output_tokens: result.outputTokens },
-        data: { message: result.message }
-      };
+        publicModel,
+        providerModel,
+        reservationCredits: reservationCharge,
+        execute: () => provider.chat({
+          ...input,
+          model: providerModel,
+          max_output_tokens: effectiveMaxOutput
+        }),
+        getActualCharge: (result) => calculateTokenCost(result.inputTokens, result.outputTokens, pricing),
+        buildResponse: (result, charge) => ({
+          service: 'chat',
+          model: publicModel,
+          usage: {
+            credits: charge.chargedCredits,
+            input_tokens: result.inputTokens,
+            output_tokens: result.outputTokens,
+            total_tokens: (result.inputTokens || 0) + (result.outputTokens || 0)
+          },
+          data: { message: result.message }
+        })
+      });
     },
 
     async coding(req, input) {
@@ -116,15 +266,38 @@ export function createAiService({ provider, creditsService, modelCatalog = [], p
       validateMaxOutput(input.max_output_tokens, LIMITS.coding.output);
 
       const { publicModel, providerModel } = resolveModel('coding', input.model);
-      const result = await provider.coding({ ...input, model: providerModel });
-      await charge(req, 'coding', publicModel, COSTS.coding);
+      const effectiveMaxOutput = input.max_output_tokens || LIMITS.coding.output;
+      const pricing = await getPricing(providerModel, 'coding');
+      const estimatedInput = Math.ceil(
+        estimateInputTokens(input.prompt) * RESERVATION_INPUT_SAFETY_FACTOR
+      );
+      const reservationCharge = pricing
+        ? calculateTokenCost(estimatedInput, effectiveMaxOutput, pricing).chargedCredits
+        : 0;
 
-      return {
+      return executeWithBilling(req, {
         service: 'coding',
-        model: publicModel,
-        usage: { credits: COSTS.coding, input_tokens: result.inputTokens, output_tokens: result.outputTokens },
-        data: { output: result.output, language: result.language }
-      };
+        publicModel,
+        providerModel,
+        reservationCredits: reservationCharge,
+        execute: () => provider.coding({
+          ...input,
+          model: providerModel,
+          max_output_tokens: effectiveMaxOutput
+        }),
+        getActualCharge: (result) => calculateTokenCost(result.inputTokens, result.outputTokens, pricing),
+        buildResponse: (result, charge) => ({
+          service: 'coding',
+          model: publicModel,
+          usage: {
+            credits: charge.chargedCredits,
+            input_tokens: result.inputTokens,
+            output_tokens: result.outputTokens,
+            total_tokens: (result.inputTokens || 0) + (result.outputTokens || 0)
+          },
+          data: { output: result.output, language: result.language }
+        })
+      });
     },
 
     async image(req, input) {
@@ -136,17 +309,27 @@ export function createAiService({ provider, creditsService, modelCatalog = [], p
       }
 
       const { publicModel, providerModel } = resolveModel('image', input.model);
-      const result = await provider.image({ ...input, model: providerModel });
-      await charge(req, 'image', publicModel, COSTS.image);
+      const pricing = await getPricing(providerModel, 'image');
+      const reservationCharge = pricing
+        ? calculateImageCost(pricing).chargedCredits
+        : 0;
 
-      return {
+      return executeWithBilling(req, {
         service: 'image',
-        model: publicModel,
-        usage: { credits: COSTS.image },
-        data: { images: result.images }
-      };
+        publicModel,
+        providerModel,
+        reservationCredits: reservationCharge,
+        execute: () => provider.image({ ...input, model: providerModel }),
+        getActualCharge: () => calculateImageCost(pricing),
+        buildResponse: (result, charge) => ({
+          service: 'image',
+          model: publicModel,
+          usage: { credits: charge.chargedCredits },
+          data: { images: result.images }
+        })
+      });
     }
   };
 }
 
-export { COSTS, LIMITS };
+export { LIMITS };
