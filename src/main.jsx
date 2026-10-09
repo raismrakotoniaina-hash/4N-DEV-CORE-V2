@@ -11,7 +11,7 @@ const nav=[
  {label:'Billing',icon:CreditCard},
  {label:'Projects',icon:FileCode2},
 ];
-const API_BASE=String(import.meta.env.VITE_CORE_API_URL||'').replace(/\\/$/,'');
+const API_BASE=String(import.meta.env.VITE_CORE_API_URL||'').replace(new RegExp('/$'),'');
 async function api(path,options={}){
  if(!API_BASE)throw new Error('Core API URL is not configured. The frontend is ready, but the Core server URL must be set in Vercel environment variables.');
  const res=await fetch(API_BASE+path,{credentials:'include',...options,headers:{...(options.headers||{})}});
