@@ -59,7 +59,7 @@ export function createZopayoProvider(config) {
       return {
         status: asText(raw.statut_general).toUpperCase(),
         reference: asText(raw.reference),
-        merchantReference: asText(raw.id_relation),
+        merchantReference: asText(raw.id_relation || raw.reference),
         transactionId: asText(raw.id_transaction),
         amountPaid: raw.montant_paye ?? raw.montant,
         currency: asText(raw.devise).toUpperCase(),
