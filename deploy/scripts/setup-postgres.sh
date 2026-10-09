@@ -82,6 +82,8 @@ DATABASE_URL="postgresql://$DB_USER:$DB_PASSWORD@127.0.0.1:5432/$DB_NAME"
 
 mkdir -p /etc/4n-dev-core
 if [[ -f "$ENV_FILE" ]]; then
+  # Replace template/empty settings instead of leaving duplicate active entries.
+  sed -i -e '/^DATABASE_URL=/d' -e '/^DB_SSL=/d' -e '/^DB_SSL_REJECT_UNAUTHORIZED=/d' "$ENV_FILE"
   chmod 640 "$ENV_FILE"
   chown root:4ndev "$ENV_FILE"
   printf '\n# PostgreSQL configured by setup-postgres.sh\nDATABASE_URL=%s\nDB_SSL=false\nDB_SSL_REJECT_UNAUTHORIZED=true\n' "$DATABASE_URL" >> "$ENV_FILE"
