@@ -11,7 +11,7 @@ if (!config.databaseUrl) {
   throw new Error('DATABASE_URL is required for migrations.');
 }
 
-const migrationsDir = path.dirname(fileURLToPath(import.meta.url));
+const migrationsDir = path.join(path.dirname(fileURLToPath(import.meta.url)), 'migrations');
 const MIGRATION_LOCK_ID = 41004;
 
 async function main() {
