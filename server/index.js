@@ -5,6 +5,10 @@ import { requestId } from './middleware/request-id.js';
 import { accessLog } from './middleware/access-log.js';
 import createV1Router from './routes/v1.js';
 import createAuthRouter from './routes/auth.js';
+import createDashboardRouter from './routes/dashboard.js';
+import createProjectsRouter from './routes/projects.js';
+import { requireDeveloperSession } from './middleware/developer-session.js';
+import { createProjectsRepository } from './db/repositories/projects.js';
 import { requireDeveloperSession } from './middleware/developer-session.js';
 import { createDbPool } from './db/client.js';
 import { createDevelopersRepository } from './db/repositories/developers.js';
@@ -87,7 +91,8 @@ const repositories = db ? {
   credits: createCreditsRepository(db),
   usage: createUsageRepository(db),
   pricing: createPricingRepository(db),
-  billing: createBillingRepository(db)
+  billing: createBillingRepository(db),
+  projects: createProjectsRepository(db)
 } : null;
 
 app.use('/api/auth', createAuthRouter({
@@ -101,6 +106,9 @@ const sessionMiddleware = requireDeveloperSession({
   developerRepository: repositories?.developers,
   sessionSecret: config.sessionSecret
 });
+
+app.use('/api/dashboard', createDashboardRouter({ db, sessionMiddleware, corsOrigin: config.corsOrigin }));
+app.use('/api/projects', createProjectsRouter({ projectRepository: repositories?.projects, sessionMiddleware, corsOrigin: config.corsOrigin }));
 
 app.use('/api/keys', createApiKeysRouter({
   apiKeyRepository: repositories?.apiKeys,
