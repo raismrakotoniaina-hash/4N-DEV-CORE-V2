@@ -27,18 +27,17 @@ Never commit production secrets.
 
 ## First deployment
 
-1. Run `deploy/scripts/install.sh` as root.
-2. Use `deploy/core.env.example` as the template and create `/etc/4n-dev-core/core.env`.
-3. Set unique production secrets for `API_KEY_PEPPER`, `SESSION_SECRET`, and the Zopayo webhook secret.
-4. Keep `AI_PROVIDER=none` until the real AI provider credentials and pricing are configured.
-5. Run `deploy/scripts/deploy.sh`.
-4. Install `deploy/systemd/4n-dev-core.service` into `/etc/systemd/system/`.
-5. Install `deploy/systemd/4n-dev-core-backup.service` and `deploy/systemd/4n-dev-core-backup.timer`.
-6. Install `deploy/nginx/4n-dev-core.conf` into `/etc/nginx/sites-available/`.
-7. Enable the Nginx site.
-8. Confirm the DNS A/AAAA record for the Core domain points to the VPS and that TCP ports 80 and 443 are reachable.
-9. Run `deploy/scripts/setup-tls.sh <core-domain> <email>` as root. The script obtains the Let's Encrypt certificate through the HTTP-01 webroot challenge, installs the HTTPS Nginx configuration, reloads Nginx, and runs `certbot renew --dry-run`.
-10. Verify `/health` through HTTPS.
+1. Purchase/control the domain and create the VPS. Keep the frontend console and Core API on separate hostnames: `console.4ndev.com` for the Vercel console and `core.4ndev.com` for the VPS API.
+2. Point the `core` DNS A record to the VPS public IPv4 address. Point `console` to the Vercel project using the DNS records Vercel shows for the project. Do not guess the target records.
+3. Ensure the VPS provider firewall allows TCP 22 (or your configured SSH port), 80 and 443.
+4. Run `deploy/scripts/install.sh` as root.
+5. Create `/etc/4n-dev-core/core.env` from `deploy/core.env.example`. Keep `DATABASE_URL=` blank for now; set unique `API_KEY_PEPPER`, `SESSION_SECRET`, and Zopayo secrets. Keep `AI_PROVIDER=none` until provider credentials and pricing have been verified.
+6. Run `deploy/scripts/setup-postgres.sh` as root. It installs PostgreSQL, creates the local database/user, and fills `DATABASE_URL` in the environment file.
+7. Run `deploy/scripts/harden-vps.sh` as root after confirming the SSH port is correct, so the firewall does not lock out the operator.
+8. Run `deploy/scripts/deploy.sh` as root. It installs dependencies, configures Nginx/systemd, applies database migrations, and starts the API.
+9. After DNS resolves to the VPS and port 80 is reachable, run `deploy/scripts/setup-tls.sh core.4ndev.com <email>` as root. This issues a Let's Encrypt certificate, activates HTTPS and checks renewal.
+10. Set the Vercel environment variable `VITE_CORE_API_URL=https://core.4ndev.com` and redeploy the frontend. Set `CORS_ORIGIN=https://console.4ndev.com` in `core.env`.
+11. Verify `https://core.4ndev.com/health` and `https://core.4ndev.com/ready`. The latter must confirm PostgreSQL is ready.
 
 PostgreSQL should remain private and must not be exposed directly to the public Internet.
 
