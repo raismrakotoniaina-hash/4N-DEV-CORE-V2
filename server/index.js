@@ -5,6 +5,7 @@ import { requestId } from './middleware/request-id.js';
 import { accessLog } from './middleware/access-log.js';
 import createV1Router from './routes/v1.js';
 import createAuthRouter from './routes/auth.js';
+import { requireDeveloperSession } from './middleware/developer-session.js';
 import { createDbPool } from './db/client.js';
 import { createDevelopersRepository } from './db/repositories/developers.js';
 import { createSessionsRepository } from './db/repositories/sessions.js';
