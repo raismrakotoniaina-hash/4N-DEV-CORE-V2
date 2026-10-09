@@ -9,7 +9,7 @@ export function createCreditsRepository(db) {
       if (!db) return null;
 
       const result = await db.query(
-        `SELECT workspace_id, balance, reserved_balance, updated_at
+        `SELECT workspace_id, balance, reserved_balance, monthly_limit, updated_at
          FROM credit_accounts
          WHERE workspace_id = $1
          LIMIT 1`,
@@ -21,11 +21,13 @@ export function createCreditsRepository(db) {
       const row = result.rows[0];
       const balance = asNumber(row.balance);
       const reservedBalance = asNumber(row.reserved_balance);
+      const monthlyLimit = asNumber(row.monthly_limit);
 
       return {
         ...row,
         balance,
         reserved_balance: reservedBalance,
+        monthly_limit: monthlyLimit,
         available_balance: Math.max(0, balance - reservedBalance)
       };
     },
