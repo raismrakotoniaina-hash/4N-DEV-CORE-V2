@@ -45,3 +45,8 @@
 .package-row>strong{white-space:nowrap;font-variant-numeric:tabular-nums}
 .billing-footnote{margin:16px 0 0;color:var(--muted,#9aa7bd);font-size:12px;line-height:1.6}
 @media(max-width:640px){.package-row{grid-template-columns:minmax(0,1fr) auto;gap:10px}.package-row>strong{grid-column:2;grid-row:1}.package-row>button{grid-column:1 / -1;width:100%}.currency-picker{align-items:flex-start;flex-direction:column}.currency-picker select{width:100%}}
+
+
+.preview-banner{display:flex;align-items:center;gap:9px;padding:10px 22px;background:rgba(85,183,255,.09);border-bottom:1px solid rgba(85,183,255,.22);color:var(--text,#e7edf8);font-size:12px;line-height:1.5}
+.preview-banner svg{width:16px;height:16px;flex:0 0 auto;color:#65c5ff}
+.preview-access{width:100%;margin-top:12px;justify-content:center}
