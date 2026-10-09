@@ -113,8 +113,7 @@ app.use('/api/keys', createApiKeysRouter({
   apiKeyRepository: repositories?.apiKeys,
   apiKeyPepper: config.apiKeyPepper,
   sessionMiddleware,
-  corsOrigin: config.corsOrigin,
-  zopayoWebhookSecret: config.zopayoWebhookSecret
+  corsOrigin: config.corsOrigin
 }));
 
 const creditsService = db
@@ -131,7 +130,8 @@ app.use('/api/billing', createBillingRouter({
   billingService,
   sessionMiddleware,
   zopayo,
-  corsOrigin: config.corsOrigin
+  corsOrigin: config.corsOrigin,
+  zopayoWebhookSecret: config.zopayoWebhookSecret
 }));
 
 const modelCatalog = [
