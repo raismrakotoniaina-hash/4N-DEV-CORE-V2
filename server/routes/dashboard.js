@@ -19,7 +19,7 @@ export default function createDashboardRouter({ db, sessionMiddleware, corsOrigi
       const workspaceId = req.workspace.id;
       const [accountResult, usageResult] = await Promise.all([
         db.query(
-          `SELECT balance, reserved_balance, monthly_limit
+          `SELECT balance, reserved_balance
            FROM credit_accounts
            WHERE workspace_id = $1
            LIMIT 1`,
@@ -28,7 +28,7 @@ export default function createDashboardRouter({ db, sessionMiddleware, corsOrigi
         db.query(
           `SELECT
              COUNT(*)::integer AS requests,
-             COALESCE(SUM(credits), 0)::integer AS credits_used,
+             COALESCE(SUM(credits), 0) AS credits_used,
              CASE WHEN COUNT(*) = 0 THEN NULL
                ELSE ROUND(100.0 * COUNT(*) FILTER (WHERE status = 'success') / COUNT(*), 1)
              END AS success_rate
@@ -39,7 +39,7 @@ export default function createDashboardRouter({ db, sessionMiddleware, corsOrigi
         )
       ]);
 
-      const account = accountResult.rows[0] || { balance: 0, reserved_balance: 0, monthly_limit: 0 };
+      const account = accountResult.rows[0] || { balance: 0, reserved_balance: 0 };
       const usage = usageResult.rows[0] || { requests: 0, credits_used: 0, success_rate: null };
       const balance = Number(account.balance || 0);
       const reserved = Number(account.reserved_balance || 0);
@@ -51,7 +51,7 @@ export default function createDashboardRouter({ db, sessionMiddleware, corsOrigi
           name: req.workspace.name,
           plan: 'Prepaid credits',
           credits: Math.max(0, balance - reserved),
-          monthlyCredits: Number(account.monthly_limit || 0)
+          monthlyCredits: 0
         },
         usage: {
           requests: Number(usage.requests || 0),
