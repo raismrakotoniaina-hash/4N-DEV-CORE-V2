@@ -18,11 +18,14 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
-      - name: Install dependencies
-        run: npm install --no-audit --no-fund
+          node-version: 24
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
       - name: Build frontend
         run: npm run build
       - name: Check backend JavaScript syntax
         run: |
           find server -name '*.js' -print0 | xargs -0 -n1 node --check
+      - name: Check deployment shell syntax
+        run: |
+          bash -n deploy/scripts/*.sh
