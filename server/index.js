@@ -9,7 +9,6 @@ import createDashboardRouter from './routes/dashboard.js';
 import createProjectsRouter from './routes/projects.js';
 import { requireDeveloperSession } from './middleware/developer-session.js';
 import { createProjectsRepository } from './db/repositories/projects.js';
-import { requireDeveloperSession } from './middleware/developer-session.js';
 import { createDbPool } from './db/client.js';
 import { createDevelopersRepository } from './db/repositories/developers.js';
 import { createSessionsRepository } from './db/repositories/sessions.js';
