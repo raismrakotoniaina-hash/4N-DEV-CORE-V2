@@ -75,17 +75,29 @@ export function validateProductionConfig(config) {
   }
 
   if (!['none', 'openai'].includes(config.aiProvider)) missing.push('AI_PROVIDER');
-  if (!config.zopayoApiKey) missing.push('ZOPAYO_API_KEY');
-  if (!config.zopayoWebhookSecret) missing.push('ZOPAYO_WEBHOOK_SECRET');
-  if (!config.zopayoSuccessUrl) missing.push('ZOPAYO_SUCCESS_URL');
-  if (!config.zopayoErrorUrl) missing.push('ZOPAYO_ERROR_URL');
 
-  if (config.zopayoSuccessUrl && !isHttpsUrl(config.zopayoSuccessUrl)) {
-    missing.push('ZOPAYO_SUCCESS_URL_HTTPS');
-  }
+  // Payments are optional during initial Core deployment. If any Zopayo
+  // setting is supplied, require the complete secure configuration.
+  const zopayoConfigured = Boolean(
+    config.zopayoApiKey
+    || config.zopayoWebhookSecret
+    || config.zopayoSuccessUrl
+    || config.zopayoErrorUrl
+  );
 
-  if (config.zopayoErrorUrl && !isHttpsUrl(config.zopayoErrorUrl)) {
-    missing.push('ZOPAYO_ERROR_URL_HTTPS');
+  if (zopayoConfigured) {
+    if (!config.zopayoApiKey) missing.push('ZOPAYO_API_KEY');
+    if (!config.zopayoWebhookSecret) missing.push('ZOPAYO_WEBHOOK_SECRET');
+    if (!config.zopayoSuccessUrl) missing.push('ZOPAYO_SUCCESS_URL');
+    if (!config.zopayoErrorUrl) missing.push('ZOPAYO_ERROR_URL');
+
+    if (config.zopayoSuccessUrl && !isHttpsUrl(config.zopayoSuccessUrl)) {
+      missing.push('ZOPAYO_SUCCESS_URL_HTTPS');
+    }
+
+    if (config.zopayoErrorUrl && !isHttpsUrl(config.zopayoErrorUrl)) {
+      missing.push('ZOPAYO_ERROR_URL_HTTPS');
+    }
   }
 
   if (missing.length) {
