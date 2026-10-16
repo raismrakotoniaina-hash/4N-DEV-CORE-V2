@@ -69,5 +69,28 @@ export default function createProjectsRouter({ projectRepository, sessionMiddlew
     }
   });
 
+  router.post('/:id/restore', async (req, res, next) => {
+    try {
+      if (!projectRepository) {
+        return res.status(503).json({
+          success: false,
+          error: { code: 'projects_not_configured', message: 'Projects require the Core database.' },
+          requestId: req.requestId
+        });
+      }
+      const project = await projectRepository.restore({ id: req.params.id, workspaceId: req.workspace.id });
+      if (!project) {
+        return res.status(404).json({
+          success: false,
+          error: { code: 'project_not_found', message: 'Project was not found or is already active.' },
+          requestId: req.requestId
+        });
+      }
+      return res.json({ success: true, project, requestId: req.requestId });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
   return router;
 }
