@@ -9,7 +9,7 @@ const examples = {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': ` + "`Bearer ${process.env.CORE_API_KEY}`" + `,
+      'Authorization': `Bearer ${process.env.CORE_API_KEY}`,
     },
     body: JSON.stringify({
       model: '4n-chat',
@@ -21,7 +21,7 @@ const examples = {
 );
 
 if (!response.ok) {
-  throw new Error(` + "`Core API error: ${response.status}`" + `);
+  throw new Error(`Core API error: ${response.status}`);
 }
 
 const result = await response.json();
