@@ -34,8 +34,8 @@ export function createDevelopersRepository(db) {
           [workspaceName, workspaceSlug, developer.rows[0].id]
         );
         await client.query(
-          'INSERT INTO credit_accounts (workspace_id, balance, monthly_limit) VALUES ($1, $2, $3)',
-          [workspace.rows[0].id, initialCredits, initialCredits]
+          'INSERT INTO credit_accounts (workspace_id, balance) VALUES ($1, $2)',
+          [workspace.rows[0].id, initialCredits]
         );
         await client.query('COMMIT');
         return { developer: developer.rows[0], workspace: workspace.rows[0] };
