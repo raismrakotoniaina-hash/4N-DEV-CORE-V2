@@ -199,7 +199,7 @@ export default function createBillingRouter({
         amount: transaction.amount,
         currency: transaction.currency,
         reference: transaction.payment_reference,
-        description: `4N DEV credits package ${transaction.package_id}`
+        description: `4N DEV USD account top-up: ${transaction.amount} ${transaction.currency}`
       });
 
       await billingService.updateCheckoutMetadata({
