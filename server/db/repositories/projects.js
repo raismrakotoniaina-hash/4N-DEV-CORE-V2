@@ -30,6 +30,17 @@ export function createProjectsRepository(db) {
         [id, workspaceId]
       );
       return result.rows[0] || null;
+    },
+
+    async restore({ id, workspaceId }) {
+      const result = await db.query(
+        `UPDATE projects
+         SET status = 'active', updated_at = now()
+         WHERE id = $1 AND workspace_id = $2 AND status = 'archived'
+         RETURNING id, name, status, created_at AS "createdAt"`,
+        [id, workspaceId]
+      );
+      return result.rows[0] || null;
     }
   };
 }
