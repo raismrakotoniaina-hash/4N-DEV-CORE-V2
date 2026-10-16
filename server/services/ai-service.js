@@ -47,12 +47,30 @@ function estimateInputTokens(value) {
   return Math.max(1, Math.ceil(textLength(value) / 4));
 }
 
-function calculateTokenCost(inputTokens, outputTokens, providerPricing, customerPricing) {
-  const providerInputRate = Number(providerPricing?.input_cost_per_1m_usd || 0);
-  const providerOutputRate = Number(providerPricing?.output_cost_per_1m_usd || 0);
+export function calculateTokenCost(inputTokens, outputTokens, providerPricing, customerPricing) {
+  const input = Number(inputTokens);
+  const output = Number(outputTokens);
+  if (!Number.isFinite(input) || !Number.isFinite(output) || input < 0 || output < 0) {
+    throw serviceError('invalid_usage', 'Token usage must be finite non-negative numbers.');
+  }
+
+  if (
+    providerPricing?.input_cost_per_1m_usd == null ||
+    providerPricing?.output_cost_per_1m_usd == null
+  ) {
+    throw serviceError('pricing_not_configured', 'Provider input and output costs must be configured.', 503);
+  }
+  const providerInputRate = Number(providerPricing.input_cost_per_1m_usd);
+  const providerOutputRate = Number(providerPricing.output_cost_per_1m_usd);
+  if (
+    !Number.isFinite(providerInputRate) || !Number.isFinite(providerOutputRate) ||
+    providerInputRate < 0 || providerOutputRate < 0
+  ) {
+    throw serviceError('pricing_not_configured', 'Provider pricing is invalid.', 503);
+  }
   const providerCostUsd =
-    (Number(inputTokens) / 1_000_000) * providerInputRate +
-    (Number(outputTokens) / 1_000_000) * providerOutputRate;
+    (input / 1_000_000) * providerInputRate +
+    (output / 1_000_000) * providerOutputRate;
 
   if (
     customerPricing?.input_price_per_1m_usd == null ||
@@ -66,8 +84,8 @@ function calculateTokenCost(inputTokens, outputTokens, providerPricing, customer
     throw serviceError('customer_pricing_not_configured', '4N DEV customer tariff is not configured for this model.', 503);
   }
   const chargedUsd =
-    (Number(inputTokens) / 1_000_000) * customerInputRate +
-    (Number(outputTokens) / 1_000_000) * customerOutputRate;
+    (input / 1_000_000) * customerInputRate +
+    (output / 1_000_000) * customerOutputRate;
   const marginMultiplier = providerCostUsd > 0 ? chargedUsd / providerCostUsd : 0;
 
   return {
@@ -78,8 +96,14 @@ function calculateTokenCost(inputTokens, outputTokens, providerPricing, customer
   };
 }
 
-function calculateImageCost(providerPricing, customerPricing) {
-  const providerCostUsd = Number(providerPricing?.image_cost_usd || 0);
+export function calculateImageCost(providerPricing, customerPricing) {
+  if (providerPricing?.image_cost_usd == null) {
+    throw serviceError('pricing_not_configured', 'Provider image cost is not configured.', 503);
+  }
+  const providerCostUsd = Number(providerPricing.image_cost_usd);
+  if (!Number.isFinite(providerCostUsd) || providerCostUsd < 0) {
+    throw serviceError('pricing_not_configured', 'Provider image pricing is invalid.', 503);
+  }
   if (customerPricing?.image_price_usd == null) {
     throw serviceError('customer_pricing_not_configured', '4N DEV image tariff is not configured.', 503);
   }
