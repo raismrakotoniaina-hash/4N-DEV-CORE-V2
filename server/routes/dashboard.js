@@ -17,7 +17,7 @@ export default function createDashboardRouter({ db, sessionMiddleware, corsOrigi
       }
 
       const workspaceId = req.workspace.id;
-      const [accountResult, usageResult] = await Promise.all([
+      const [accountResult, usageResult, ratesResult] = await Promise.all([
         db.query(
           `SELECT balance, reserved_balance
            FROM credit_accounts
@@ -29,6 +29,9 @@ export default function createDashboardRouter({ db, sessionMiddleware, corsOrigi
           `SELECT
              COUNT(*)::integer AS requests,
              COALESCE(SUM(credits), 0) AS credits_used,
+             COALESCE(SUM(charged_usd), SUM(credits) / 100.0, 0) AS spend_usd,
+             COALESCE(SUM(input_tokens), 0) AS input_tokens,
+             COALESCE(SUM(output_tokens), 0) AS output_tokens,
              CASE WHEN COUNT(*) = 0 THEN NULL
                ELSE ROUND(100.0 * COUNT(*) FILTER (WHERE status = 'success') / COUNT(*), 1)
              END AS success_rate
@@ -36,28 +39,55 @@ export default function createDashboardRouter({ db, sessionMiddleware, corsOrigi
            WHERE workspace_id = $1
              AND created_at >= date_trunc('month', now())`,
           [workspaceId]
+        ),
+        db.query(
+          `SELECT currency, usd_to_currency
+           FROM display_exchange_rates
+           WHERE currency IN ('EUR', 'MGA')`
         )
       ]);
 
       const account = accountResult.rows[0] || { balance: 0, reserved_balance: 0 };
-      const usage = usageResult.rows[0] || { requests: 0, credits_used: 0, success_rate: null };
+      const usage = usageResult.rows[0] || {};
       const balance = Number(account.balance || 0);
       const reserved = Number(account.reserved_balance || 0);
+      const availableUsd = Math.max(0, balance - reserved) / 100;
+      const rates = Object.fromEntries(
+        ratesResult.rows.map((row) => [row.currency, Number(row.usd_to_currency)])
+      );
+      const money = (usd, currency) => Number.isFinite(rates[currency])
+        ? Number((usd * rates[currency]).toFixed(2))
+        : null;
 
       return res.json({
         success: true,
         workspace: {
           id: workspaceId,
           name: req.workspace.name,
-          plan: 'Prepaid credits',
+          plan: 'Prepaid USD',
+          currency: 'USD',
           credits: Math.max(0, balance - reserved),
+          balanceUsd: Number((balance / 100).toFixed(6)),
+          reservedUsd: Number((reserved / 100).toFixed(6)),
+          availableBalanceUsd: Number(availableUsd.toFixed(6)),
+          availableBalanceEur: money(availableUsd, 'EUR'),
+          availableBalanceMga: money(availableUsd, 'MGA'),
           monthlyCredits: 0
         },
         usage: {
           requests: Number(usage.requests || 0),
           creditsUsed: Number(usage.credits_used || 0),
-          successRate: usage.success_rate === null ? null : Number(usage.success_rate)
+          spendUsd: Number(usage.spend_usd || 0),
+          spendEur: money(Number(usage.spend_usd || 0), 'EUR'),
+          spendMga: money(Number(usage.spend_usd || 0), 'MGA'),
+          inputTokens: Number(usage.input_tokens || 0),
+          outputTokens: Number(usage.output_tokens || 0),
+          totalTokens: Number(usage.input_tokens || 0) + Number(usage.output_tokens || 0),
+          successRate: usage.success_rate === null || usage.success_rate === undefined
+            ? null
+            : Number(usage.success_rate)
         },
+        exchangeRatesUpdated: ratesResult.rows.length > 0,
         requestId: req.requestId
       });
     } catch (error) {

@@ -47,14 +47,46 @@ function estimateInputTokens(value) {
   return Math.max(1, Math.ceil(textLength(value) / 4));
 }
 
-function calculateTokenCost(inputTokens, outputTokens, pricing) {
-  const inputRate = Number(pricing?.input_cost_per_1m_usd || 0);
-  const outputRate = Number(pricing?.output_cost_per_1m_usd || 0);
+export function calculateTokenCost(inputTokens, outputTokens, providerPricing, customerPricing) {
+  const input = Number(inputTokens);
+  const output = Number(outputTokens);
+  if (!Number.isFinite(input) || !Number.isFinite(output) || input < 0 || output < 0) {
+    throw serviceError('invalid_usage', 'Token usage must be finite non-negative numbers.');
+  }
+
+  if (
+    providerPricing?.input_cost_per_1m_usd == null ||
+    providerPricing?.output_cost_per_1m_usd == null
+  ) {
+    throw serviceError('pricing_not_configured', 'Provider input and output costs must be configured.', 503);
+  }
+  const providerInputRate = Number(providerPricing.input_cost_per_1m_usd);
+  const providerOutputRate = Number(providerPricing.output_cost_per_1m_usd);
+  if (
+    !Number.isFinite(providerInputRate) || !Number.isFinite(providerOutputRate) ||
+    providerInputRate < 0 || providerOutputRate < 0
+  ) {
+    throw serviceError('pricing_not_configured', 'Provider pricing is invalid.', 503);
+  }
   const providerCostUsd =
-    (Number(inputTokens) / 1_000_000) * inputRate +
-    (Number(outputTokens) / 1_000_000) * outputRate;
-  const marginMultiplier = Number(pricing?.margin_multiplier || 0);
-  const chargedUsd = providerCostUsd * marginMultiplier;
+    (input / 1_000_000) * providerInputRate +
+    (output / 1_000_000) * providerOutputRate;
+
+  if (
+    customerPricing?.input_price_per_1m_usd == null ||
+    customerPricing?.output_price_per_1m_usd == null
+  ) {
+    throw serviceError('customer_pricing_not_configured', 'Both 4N DEV input and output tariffs must be configured for this model.', 503);
+  }
+  const customerInputRate = Number(customerPricing.input_price_per_1m_usd);
+  const customerOutputRate = Number(customerPricing.output_price_per_1m_usd);
+  if (!Number.isFinite(customerInputRate) || !Number.isFinite(customerOutputRate) || customerInputRate < 0 || customerOutputRate < 0) {
+    throw serviceError('customer_pricing_not_configured', '4N DEV customer tariff is not configured for this model.', 503);
+  }
+  const chargedUsd =
+    (input / 1_000_000) * customerInputRate +
+    (output / 1_000_000) * customerOutputRate;
+  const marginMultiplier = providerCostUsd > 0 ? chargedUsd / providerCostUsd : 0;
 
   return {
     providerCostUsd,
@@ -64,10 +96,22 @@ function calculateTokenCost(inputTokens, outputTokens, pricing) {
   };
 }
 
-function calculateImageCost(pricing) {
-  const providerCostUsd = Number(pricing?.image_cost_usd || 0);
-  const marginMultiplier = Number(pricing?.margin_multiplier || 0);
-  const chargedUsd = providerCostUsd * marginMultiplier;
+export function calculateImageCost(providerPricing, customerPricing) {
+  if (providerPricing?.image_cost_usd == null) {
+    throw serviceError('pricing_not_configured', 'Provider image cost is not configured.', 503);
+  }
+  const providerCostUsd = Number(providerPricing.image_cost_usd);
+  if (!Number.isFinite(providerCostUsd) || providerCostUsd < 0) {
+    throw serviceError('pricing_not_configured', 'Provider image pricing is invalid.', 503);
+  }
+  if (customerPricing?.image_price_usd == null) {
+    throw serviceError('customer_pricing_not_configured', '4N DEV image tariff is not configured.', 503);
+  }
+  const chargedUsd = Number(customerPricing.image_price_usd);
+  if (!Number.isFinite(chargedUsd) || chargedUsd < 0) {
+    throw serviceError('customer_pricing_not_configured', '4N DEV image tariff is not configured.', 503);
+  }
+  const marginMultiplier = providerCostUsd > 0 ? chargedUsd / providerCostUsd : 0;
 
   return {
     providerCostUsd,
@@ -107,20 +151,22 @@ export function createAiService({
     return { publicModel, providerModel };
   };
 
-  async function getPricing(providerModel, service) {
+  async function getPricing(providerModel, publicModel, service) {
     if (provider.id === 'demo') return null;
 
-    const pricing = await creditsService.getPricing({
-      provider: provider.id,
-      providerModel,
-      service
-    });
+    const [providerPricing, customerPricing] = await Promise.all([
+      creditsService.getPricing({ provider: provider.id, providerModel, service }),
+      creditsService.getCustomerPricing({ publicModel, service })
+    ]);
 
-    if (!pricing) {
-      throw serviceError('pricing_not_configured', 'Core pricing is not configured for this model.', 503);
+    if (!providerPricing) {
+      throw serviceError('pricing_not_configured', 'Provider cost is not configured for this model.', 503);
+    }
+    if (!customerPricing) {
+      throw serviceError('customer_pricing_not_configured', '4N DEV customer tariff is not configured for this model.', 503);
     }
 
-    return pricing;
+    return { providerPricing, customerPricing };
   }
 
   async function executeWithBilling(req, {
@@ -223,12 +269,12 @@ export function createAiService({
 
       const { publicModel, providerModel } = resolveModel('chat', input.model);
       const effectiveMaxOutput = input.max_output_tokens || LIMITS.chat.output;
-      const pricing = await getPricing(providerModel, 'chat');
+      const pricing = await getPricing(providerModel, publicModel, 'chat');
       const estimatedInput = Math.ceil(
         estimateInputTokens(JSON.stringify(input.messages)) * RESERVATION_INPUT_SAFETY_FACTOR
       );
       const reservationCharge = pricing
-        ? calculateTokenCost(estimatedInput, effectiveMaxOutput, pricing).chargedCredits
+        ? calculateTokenCost(estimatedInput, effectiveMaxOutput, pricing.providerPricing, pricing.customerPricing).chargedCredits
         : 0;
 
       return executeWithBilling(req, {
@@ -241,7 +287,7 @@ export function createAiService({
           model: providerModel,
           max_output_tokens: effectiveMaxOutput
         }),
-        getActualCharge: (result) => calculateTokenCost(result.inputTokens, result.outputTokens, pricing),
+        getActualCharge: (result) => calculateTokenCost(result.inputTokens, result.outputTokens, pricing.providerPricing, pricing.customerPricing),
         buildResponse: (result, charge) => ({
           service: 'chat',
           model: publicModel,
@@ -267,12 +313,12 @@ export function createAiService({
 
       const { publicModel, providerModel } = resolveModel('coding', input.model);
       const effectiveMaxOutput = input.max_output_tokens || LIMITS.coding.output;
-      const pricing = await getPricing(providerModel, 'coding');
+      const pricing = await getPricing(providerModel, publicModel, 'coding');
       const estimatedInput = Math.ceil(
         estimateInputTokens(input.prompt) * RESERVATION_INPUT_SAFETY_FACTOR
       );
       const reservationCharge = pricing
-        ? calculateTokenCost(estimatedInput, effectiveMaxOutput, pricing).chargedCredits
+        ? calculateTokenCost(estimatedInput, effectiveMaxOutput, pricing.providerPricing, pricing.customerPricing).chargedCredits
         : 0;
 
       return executeWithBilling(req, {
@@ -285,7 +331,7 @@ export function createAiService({
           model: providerModel,
           max_output_tokens: effectiveMaxOutput
         }),
-        getActualCharge: (result) => calculateTokenCost(result.inputTokens, result.outputTokens, pricing),
+        getActualCharge: (result) => calculateTokenCost(result.inputTokens, result.outputTokens, pricing.providerPricing, pricing.customerPricing),
         buildResponse: (result, charge) => ({
           service: 'coding',
           model: publicModel,
@@ -309,9 +355,9 @@ export function createAiService({
       }
 
       const { publicModel, providerModel } = resolveModel('image', input.model);
-      const pricing = await getPricing(providerModel, 'image');
+      const pricing = await getPricing(providerModel, publicModel, 'image');
       const reservationCharge = pricing
-        ? calculateImageCost(pricing).chargedCredits
+        ? calculateImageCost(pricing.providerPricing, pricing.customerPricing).chargedCredits
         : 0;
 
       return executeWithBilling(req, {
@@ -320,7 +366,7 @@ export function createAiService({
         providerModel,
         reservationCredits: reservationCharge,
         execute: () => provider.image({ ...input, model: providerModel }),
-        getActualCharge: () => calculateImageCost(pricing),
+        getActualCharge: () => calculateImageCost(pricing.providerPricing, pricing.customerPricing),
         buildResponse: (result, charge) => ({
           service: 'image',
           model: publicModel,

@@ -28,6 +28,13 @@ export function createCreditsService(creditsRepository, usageRepository, pricing
       return pricingRepository.getActivePricing({ provider, providerModel, service });
     },
 
+    async getCustomerPricing({ publicModel, service }) {
+      if (!pricingRepository?.getActiveCustomerPricing) {
+        throw new Error('customer_pricing_repository_not_configured');
+      }
+      return pricingRepository.getActiveCustomerPricing({ publicModel, service });
+    },
+
     async reserve({ workspaceId, apiKeyId, requestId, credits, metadata }) {
       try {
         return await creditsRepository.reserve({
