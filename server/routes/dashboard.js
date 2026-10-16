@@ -17,7 +17,7 @@ export default function createDashboardRouter({ db, sessionMiddleware, corsOrigi
       }
 
       const workspaceId = req.workspace.id;
-      const [accountResult, usageResult, ratesResult] = await Promise.all([
+      const [accountResult, usageResult, ratesResult, customerPricingResult] = await Promise.all([
         db.query(
           `SELECT balance, reserved_balance
            FROM credit_accounts
@@ -44,6 +44,13 @@ export default function createDashboardRouter({ db, sessionMiddleware, corsOrigi
           `SELECT currency, usd_to_currency
            FROM display_exchange_rates
            WHERE currency IN ('EUR', 'MGA')`
+        ),
+        db.query(
+          `SELECT public_model, service, input_price_per_1m_usd, output_price_per_1m_usd, image_price_usd
+           FROM customer_model_pricing
+           WHERE status = 'active' AND effective_from <= now()
+             AND (effective_to IS NULL OR effective_to > now())
+           ORDER BY service, public_model`
         )
       ]);
 
@@ -87,6 +94,13 @@ export default function createDashboardRouter({ db, sessionMiddleware, corsOrigi
             ? null
             : Number(usage.success_rate)
         },
+        customerPricing: customerPricingResult.rows.map((row) => ({
+          model: row.public_model,
+          service: row.service,
+          inputPricePer1MUsd: row.input_price_per_1m_usd === null ? null : Number(row.input_price_per_1m_usd),
+          outputPricePer1MUsd: row.output_price_per_1m_usd === null ? null : Number(row.output_price_per_1m_usd),
+          imagePriceUsd: row.image_price_usd === null ? null : Number(row.image_price_usd)
+        })),
         exchangeRatesUpdated: ratesResult.rows.length > 0,
         requestId: req.requestId
       });
