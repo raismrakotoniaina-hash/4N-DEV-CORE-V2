@@ -285,7 +285,7 @@ export function createAiService({
         estimateInputTokens(input.prompt) * RESERVATION_INPUT_SAFETY_FACTOR
       );
       const reservationCharge = pricing
-        ? calculateTokenCost(estimatedInput, effectiveMaxOutput, pricing).chargedCredits
+        ? calculateTokenCost(estimatedInput, effectiveMaxOutput, pricing.providerPricing, pricing.customerPricing).chargedCredits
         : 0;
 
       return executeWithBilling(req, {
@@ -298,7 +298,7 @@ export function createAiService({
           model: providerModel,
           max_output_tokens: effectiveMaxOutput
         }),
-        getActualCharge: (result) => calculateTokenCost(result.inputTokens, result.outputTokens, pricing),
+        getActualCharge: (result) => calculateTokenCost(result.inputTokens, result.outputTokens, pricing.providerPricing, pricing.customerPricing),
         buildResponse: (result, charge) => ({
           service: 'coding',
           model: publicModel,
