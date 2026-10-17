@@ -62,6 +62,7 @@ export function createOpenAIProvider({ apiKey }) {
           output: response.output_text || '',
           language: language || 'text',
           inputTokens: usage.inputTokens,
+          cachedInputTokens: usage.cachedInputTokens,
           outputTokens: usage.outputTokens
         };
       } catch (error) {
