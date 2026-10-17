@@ -137,6 +137,7 @@ function positiveReservation(value) {
 export function createAiService({
   provider,
   creditsService,
+  usdWalletRepository,
   modelCatalog = [],
   providerModelCatalog = {}
 }) {
@@ -210,11 +211,14 @@ export function createAiService({
       }
     }
 
-    const reservation = await creditsService.reserve({
+    if (!usdWalletRepository) {
+      throw serviceError('billing_unavailable', 'USD wallet billing is not configured.', 503);
+    }
+    const reservation = await usdWalletRepository.reserve({
       workspaceId: req.auth.workspaceId,
       apiKeyId: req.auth.apiKeyId,
       requestId: req.requestId,
-      credits: positiveReservation(reservationCredits),
+      amountUsd: positiveReservation(reservationCredits),
       metadata: { service, publicModel }
     });
 
@@ -222,35 +226,36 @@ export function createAiService({
       const result = await execute();
       const charge = getActualCharge(result);
 
-      if (charge.chargedCredits > Number(reservation.reserved_credits) + 0.000001) {
-        throw serviceError('billing_reservation_exceeded', 'Actual usage exceeded the reserved credit amount.', 503);
+      if (charge.chargedUsd > Number(reservation.reserved_usd) + 0.00000001) {
+        throw serviceError('billing_reservation_exceeded', 'Actual usage exceeded the reserved USD amount.', 503);
       }
 
-      await creditsService.settle({
+      await usdWalletRepository.settle({
         reservationId: reservation.id,
         workspaceId: req.auth.workspaceId,
-        apiKeyId: req.auth.apiKeyId,
-        requestId: req.requestId,
-        service,
-        publicModel,
-        provider: provider.id,
-        providerModel,
-        inputTokens: result.inputTokens || 0,
-        cachedInputTokens: result.cachedInputTokens || 0,
-        outputTokens: result.outputTokens || 0,
-        providerCostUsd: charge.providerCostUsd,
-        marginMultiplier: charge.marginMultiplier,
         chargedUsd: charge.chargedUsd,
-        chargedCredits: charge.chargedCredits
+        metadata: {
+          apiKeyId: req.auth.apiKeyId,
+          requestId: req.requestId,
+          service,
+          publicModel,
+          provider: provider.id,
+          providerModel,
+          inputTokens: result.inputTokens || 0,
+          cachedInputTokens: result.cachedInputTokens || 0,
+          outputTokens: result.outputTokens || 0,
+          providerCostUsd: charge.providerCostUsd,
+          marginMultiplier: charge.marginMultiplier
+        }
       });
 
       return buildResponse(result, charge);
     } catch (error) {
       try {
-        await creditsService.failReservation({
+        await usdWalletRepository.release({
           reservationId: reservation.id,
           workspaceId: req.auth.workspaceId,
-          reason: error.code || 'provider_error'
+          metadata: { reason: error.code || 'provider_error' }
         });
       } catch {
         // Keep the original provider/billing error as the API result.
@@ -280,7 +285,7 @@ export function createAiService({
         estimateInputTokens(JSON.stringify(input.messages)) * RESERVATION_INPUT_SAFETY_FACTOR
       );
       const reservationCharge = pricing
-        ? calculateTokenCost(estimatedInput, effectiveMaxOutput, pricing.providerPricing, pricing.customerPricing).chargedCredits
+        ? calculateTokenCost(estimatedInput, effectiveMaxOutput, pricing.providerPricing, pricing.customerPricing).chargedUsd
         : 0;
 
       return executeWithBilling(req, {
@@ -298,7 +303,8 @@ export function createAiService({
           service: 'chat',
           model: publicModel,
           usage: {
-            credits: charge.chargedCredits,
+            charged_usd: charge.chargedUsd,
+            currency: 'USD',
             input_tokens: result.inputTokens,
             output_tokens: result.outputTokens,
             total_tokens: (result.inputTokens || 0) + (result.outputTokens || 0)
@@ -324,7 +330,7 @@ export function createAiService({
         estimateInputTokens(input.prompt) * RESERVATION_INPUT_SAFETY_FACTOR
       );
       const reservationCharge = pricing
-        ? calculateTokenCost(estimatedInput, effectiveMaxOutput, pricing.providerPricing, pricing.customerPricing).chargedCredits
+        ? calculateTokenCost(estimatedInput, effectiveMaxOutput, pricing.providerPricing, pricing.customerPricing).chargedUsd
         : 0;
 
       return executeWithBilling(req, {
@@ -342,7 +348,8 @@ export function createAiService({
           service: 'coding',
           model: publicModel,
           usage: {
-            credits: charge.chargedCredits,
+            charged_usd: charge.chargedUsd,
+            currency: 'USD',
             input_tokens: result.inputTokens,
             output_tokens: result.outputTokens,
             total_tokens: (result.inputTokens || 0) + (result.outputTokens || 0)
@@ -376,7 +383,7 @@ export function createAiService({
         buildResponse: (result, charge) => ({
           service: 'image',
           model: publicModel,
-          usage: { credits: charge.chargedCredits },
+          usage: { charged_usd: charge.chargedUsd, currency: 'USD' },
           data: { images: result.images }
         })
       });
