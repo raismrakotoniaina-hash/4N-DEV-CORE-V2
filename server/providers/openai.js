@@ -12,6 +12,7 @@ function normalizeError(error) {
 function tokenUsage(usage) {
   return {
     inputTokens: Number(usage?.input_tokens || 0),
+    cachedInputTokens: Number(usage?.input_tokens_details?.cached_tokens || 0),
     outputTokens: Number(usage?.output_tokens || 0)
   };
 }
@@ -36,6 +37,7 @@ export function createOpenAIProvider({ apiKey }) {
           model: response.model || model,
           message: { role: 'assistant', content: response.output_text || '' },
           inputTokens: usage.inputTokens,
+          cachedInputTokens: usage.cachedInputTokens,
           outputTokens: usage.outputTokens
         };
       } catch (error) {
@@ -60,6 +62,7 @@ export function createOpenAIProvider({ apiKey }) {
           output: response.output_text || '',
           language: language || 'text',
           inputTokens: usage.inputTokens,
+          cachedInputTokens: usage.cachedInputTokens,
           outputTokens: usage.outputTokens
         };
       } catch (error) {
