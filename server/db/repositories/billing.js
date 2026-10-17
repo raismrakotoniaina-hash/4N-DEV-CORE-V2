@@ -199,43 +199,38 @@ export function createBillingRepository(db) {
           throw new Error('billing_transaction_not_pending');
         }
 
-        const accountResult = await client.query(
-          `SELECT balance
-           FROM credit_accounts
-           WHERE workspace_id = $1
-           FOR UPDATE`,
-          [transaction.workspace_id]
-        );
-
-        if (!accountResult.rows[0]) {
-          await client.query(
-            `INSERT INTO credit_accounts (workspace_id, balance, reserved_balance)
-             VALUES ($1, 0, 0)
-             ON CONFLICT (workspace_id) DO NOTHING`,
-            [transaction.workspace_id]
-          );
+        if (String(transaction.currency).toUpperCase() !== 'USD') {
+          const error = new Error('unsupported_wallet_currency');
+          error.code = 'unsupported_wallet_currency';
+          throw error;
         }
 
-        const lockedAccount = await client.query(
-          `SELECT balance
-           FROM credit_accounts
+        const topupUsd = asNumber(transaction.amount);
+        if (topupUsd <= 0) throw new Error('invalid_wallet_topup_amount');
+
+        await client.query(
+          `INSERT INTO usd_wallet_accounts (workspace_id)
+           VALUES ($1) ON CONFLICT (workspace_id) DO NOTHING`,
+          [transaction.workspace_id]
+        );
+
+        const walletResult = await client.query(
+          `SELECT balance_usd
+           FROM usd_wallet_accounts
            WHERE workspace_id = $1
            FOR UPDATE`,
           [transaction.workspace_id]
         );
+        if (!walletResult.rows[0]) throw new Error('usd_wallet_account_not_found');
 
-        if (!lockedAccount.rows[0]) throw new Error('credit_account_not_found');
-
-        const balanceBefore = asNumber(lockedAccount.rows[0].balance);
-        const credits = asNumber(transaction.credits);
-        const balanceAfter = balanceBefore + credits;
+        const balanceBeforeUsd = asNumber(walletResult.rows[0].balance_usd);
+        const balanceAfterUsd = Number((balanceBeforeUsd + topupUsd).toFixed(8));
 
         await client.query(
-          `UPDATE credit_accounts
-           SET balance = $1,
-               updated_at = now()
+          `UPDATE usd_wallet_accounts
+           SET balance_usd = $1, updated_at = now()
            WHERE workspace_id = $2`,
-          [balanceAfter, transaction.workspace_id]
+          [balanceAfterUsd, transaction.workspace_id]
         );
 
         const providerTx = providerTransactionId || transaction.provider_transaction_id;
@@ -258,24 +253,24 @@ export function createBillingRepository(db) {
         );
 
         await client.query(
-          `INSERT INTO credit_ledger
-           (workspace_id, amount, type, reference_id, reference_type,
-            balance_before, balance_after, metadata)
-           VALUES ($1, $2, 'purchase', $3, 'billing_transaction', $4, $5, $6)`,
+          `INSERT INTO usd_wallet_ledger
+           (workspace_id, amount_usd, type, reference_id, reference_type,
+            balance_before_usd, balance_after_usd, metadata)
+           VALUES ($1, $2, 'topup', $3, 'billing_transaction', $4, $5, $6::jsonb)`,
           [
             transaction.workspace_id,
-            credits,
+            topupUsd,
             transaction.id,
-            balanceBefore,
-            balanceAfter,
+            balanceBeforeUsd,
+            balanceAfterUsd,
             JSON.stringify({
               packageId: transaction.package_id,
               amount: transaction.amount,
               currency: transaction.currency,
-              credits,
               paymentProvider: transaction.payment_provider,
               providerTransactionId: providerTx || null,
-              paymentReference: reference || null
+              paymentReference: reference || null,
+              ...paymentMetadata
             })
           ]
         );
