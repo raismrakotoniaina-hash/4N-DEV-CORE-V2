@@ -48,13 +48,21 @@ export function createUsdWalletRepository(db) {
           [requestId]
         );
         if (existing.rows[0]) {
-          if (existing.rows[0].workspace_id !== workspaceId || existing.rows[0].status === 'released') {
+          const prior = existing.rows[0];
+          const amountMismatch = Math.abs(Number(prior.reserved_usd) - amountToReserve) > 0.00000001;
+          const keyMismatch = apiKeyId && prior.api_key_id && prior.api_key_id !== apiKeyId;
+          if (
+            prior.workspace_id !== workspaceId ||
+            prior.status === 'released' ||
+            amountMismatch ||
+            keyMismatch
+          ) {
             const error = new Error('duplicate_request_id');
             error.code = 'duplicate_request_id';
             throw error;
           }
           await client.query('COMMIT');
-          return existing.rows[0];
+          return prior;
         }
 
         const accountResult = await client.query(
