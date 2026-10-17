@@ -209,6 +209,8 @@ export function createAiService({
           provider: provider.id,
           providerModel,
           inputTokens: result.inputTokens || 0,
+          cachedInputTokens: result.cachedInputTokens || 0,
+          cacheWriteInputTokens: result.cacheWriteInputTokens || 0,
           outputTokens: result.outputTokens || 0,
           requestId: req.requestId
         });
@@ -358,6 +360,8 @@ export function createAiService({
           usage: {
             credits: charge.chargedCredits,
             input_tokens: result.inputTokens,
+            cached_input_tokens: result.cachedInputTokens || 0,
+            cache_write_input_tokens: result.cacheWriteInputTokens || 0,
             output_tokens: result.outputTokens,
             total_tokens: (result.inputTokens || 0) + (result.outputTokens || 0)
           },
