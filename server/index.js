@@ -9,6 +9,7 @@ import createDashboardRouter from './routes/dashboard.js';
 import createProjectsRouter from './routes/projects.js';
 import { requireDeveloperSession } from './middleware/developer-session.js';
 import { createProjectsRepository } from './db/repositories/projects.js';
+import { createUsdWalletRepository } from './db/repositories/usd-wallet.js';
 import { createDbPool } from './db/client.js';
 import { createDevelopersRepository } from './db/repositories/developers.js';
 import { createSessionsRepository } from './db/repositories/sessions.js';
@@ -88,6 +89,7 @@ const repositories = db ? {
   sessions: createSessionsRepository(db),
   apiKeys: createApiKeyRepository(db),
   credits: createCreditsRepository(db),
+  usdWallet: createUsdWalletRepository(db),
   usage: createUsageRepository(db),
   pricing: createPricingRepository(db),
   billing: createBillingRepository(db),
@@ -157,6 +159,7 @@ const aiService = provider && creditsService
   ? createAiService({
       provider,
       creditsService,
+      usdWalletRepository: repositories?.usdWallet,
       modelCatalog,
       providerModelCatalog
     })
