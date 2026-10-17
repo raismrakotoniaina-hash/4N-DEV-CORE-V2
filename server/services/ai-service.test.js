@@ -99,8 +99,8 @@ test('cache writes use their own standard provider and customer rates', () => {
     { input_price_per_1m_usd: '0.1666666667', cached_input_price_per_1m_usd: '0.0166666667', cache_write_price_per_1m_usd: '0.2083333333', output_price_per_1m_usd: '0.8333333333' },
     200_000, 300_000
   );
-  assert.equal(Number(result.providerCostUsd.toFixed(4)), 0.0725);
-  assert.equal(Number(result.chargedUsd.toFixed(4)), 0.1208);
+  assert.equal(Number(result.providerCostUsd.toFixed(4)), 0.0895);
+  assert.equal(Number(result.chargedUsd.toFixed(4)), 0.1492);
   assert.equal(Number(result.marginMultiplier.toFixed(3)), 1.667);
 });
 
