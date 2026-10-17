@@ -32,6 +32,7 @@ export default function createDashboardRouter({ db, sessionMiddleware, corsOrigi
              COALESCE(SUM(charged_usd), SUM(credits) / 100.0, 0) AS spend_usd,
              COALESCE(SUM(input_tokens), 0) AS input_tokens,
              COALESCE(SUM(cached_input_tokens), 0) AS cached_input_tokens,
+             COALESCE(SUM(cache_write_input_tokens), 0) AS cache_write_input_tokens,
              COALESCE(SUM(output_tokens), 0) AS output_tokens,
              CASE WHEN COUNT(*) = 0 THEN NULL
                ELSE ROUND(100.0 * COUNT(*) FILTER (WHERE status = 'success') / COUNT(*), 1)
@@ -47,7 +48,7 @@ export default function createDashboardRouter({ db, sessionMiddleware, corsOrigi
            WHERE currency IN ('EUR', 'MGA')`
         ),
         db.query(
-          `SELECT public_model, service, input_price_per_1m_usd, cached_input_price_per_1m_usd, output_price_per_1m_usd, image_price_usd
+          `SELECT public_model, service, input_price_per_1m_usd, cached_input_price_per_1m_usd, cache_write_price_per_1m_usd, output_price_per_1m_usd, image_price_usd
            FROM customer_model_pricing
            WHERE status = 'active' AND effective_from <= now()
              AND (effective_to IS NULL OR effective_to > now())
@@ -90,6 +91,7 @@ export default function createDashboardRouter({ db, sessionMiddleware, corsOrigi
           spendMga: money(Number(usage.spend_usd || 0), 'MGA'),
           inputTokens: Number(usage.input_tokens || 0),
           cachedInputTokens: Number(usage.cached_input_tokens || 0),
+          cacheWriteInputTokens: Number(usage.cache_write_input_tokens || 0),
           outputTokens: Number(usage.output_tokens || 0),
           totalTokens: Number(usage.input_tokens || 0) + Number(usage.output_tokens || 0),
           successRate: usage.success_rate === null || usage.success_rate === undefined
@@ -101,6 +103,7 @@ export default function createDashboardRouter({ db, sessionMiddleware, corsOrigi
           service: row.service,
           inputPricePer1MUsd: row.input_price_per_1m_usd === null ? null : Number(row.input_price_per_1m_usd),
           cachedInputPricePer1MUsd: row.cached_input_price_per_1m_usd === null ? null : Number(row.cached_input_price_per_1m_usd),
+          cacheWritePricePer1MUsd: row.cache_write_price_per_1m_usd === null ? null : Number(row.cache_write_price_per_1m_usd),
           outputPricePer1MUsd: row.output_price_per_1m_usd === null ? null : Number(row.output_price_per_1m_usd),
           imagePriceUsd: row.image_price_usd === null ? null : Number(row.image_price_usd)
         })),
