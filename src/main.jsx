@@ -146,7 +146,7 @@ function Billing({dashboard}){
  const [error,setError]=useState('');
  const w=dashboard?.workspace;
  const u=dashboard?.usage;
- const pricing=dashboard?.customerPricing||[];
+ const pricing=(dashboard?.customerPricing||[]).filter((rate)=>['4n-luna-5.6','4n-luna-6','4n-sol-5.6','4n-sol-6.1'].includes(rate.model));
  useEffect(()=>{let current=true;setLoading(true);setError('');api('/api/billing/packages?currency=USD').then(response=>{if(current)setPackages(response.packages||response.data?.packages||[]);}).catch(e=>{if(current)setError(e.message||'Unable to load funding options');}).finally(()=>{if(current)setLoading(false);});return()=>{current=false;};},[]);
  const buy=async(pkg)=>{if(!pkg?.code)return;setBusy(pkg.code);setError('');try{const created=await api('/api/billing/transactions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({packageCode:pkg.code,currency:'USD'})});const transaction=created.transaction||created.data?.transaction;if(!transaction?.id)throw new Error('Core did not return a billing transaction.');const checkout=await api('/api/billing/transactions/'+encodeURIComponent(transaction.id)+'/checkout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({})});const url=checkout.paymentUrl||checkout.data?.paymentUrl;if(!url)throw new Error('The payment provider did not return a checkout URL.');window.location.assign(url);}catch(e){setError(e.message||'Unable to start payment.');}finally{setBusy('');}};
  const formatMoney=(amount)=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',minimumFractionDigits:2,maximumFractionDigits:6}).format(Number(amount||0));
