@@ -31,6 +31,7 @@ export default function createDashboardRouter({ db, sessionMiddleware, corsOrigi
              COALESCE(SUM(credits), 0) AS credits_used,
              COALESCE(SUM(charged_usd), SUM(credits) / 100.0, 0) AS spend_usd,
              COALESCE(SUM(input_tokens), 0) AS input_tokens,
+             COALESCE(SUM(cached_input_tokens), 0) AS cached_input_tokens,
              COALESCE(SUM(output_tokens), 0) AS output_tokens,
              CASE WHEN COUNT(*) = 0 THEN NULL
                ELSE ROUND(100.0 * COUNT(*) FILTER (WHERE status = 'success') / COUNT(*), 1)
@@ -88,6 +89,7 @@ export default function createDashboardRouter({ db, sessionMiddleware, corsOrigi
           spendEur: money(Number(usage.spend_usd || 0), 'EUR'),
           spendMga: money(Number(usage.spend_usd || 0), 'MGA'),
           inputTokens: Number(usage.input_tokens || 0),
+          cachedInputTokens: Number(usage.cached_input_tokens || 0),
           outputTokens: Number(usage.output_tokens || 0),
           totalTokens: Number(usage.input_tokens || 0) + Number(usage.output_tokens || 0),
           successRate: usage.success_rate === null || usage.success_rate === undefined
