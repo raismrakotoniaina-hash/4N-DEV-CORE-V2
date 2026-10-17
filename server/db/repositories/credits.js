@@ -127,6 +127,8 @@ export function createCreditsRepository(db) {
       provider,
       providerModel,
       inputTokens = 0,
+      cachedInputTokens = 0,
+      cacheWriteInputTokens = 0,
       outputTokens = 0,
       providerCostUsd,
       marginMultiplier,
@@ -226,9 +228,9 @@ export function createCreditsRepository(db) {
         await client.query(
           `INSERT INTO usage_records
            (workspace_id, api_key_id, service, model, public_model, provider, provider_model,
-            credits, request_id, status, input_tokens, output_tokens, total_tokens,
+            credits, request_id, status, input_tokens, cached_input_tokens, cache_write_input_tokens, output_tokens, total_tokens,
             provider_cost_usd, margin_multiplier, charged_usd, reservation_credits, refunded_credits)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'success', $10, $11, $12, $13, $14, $15, $16, $17)`,
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'success', $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`,
           [
             workspaceId,
             apiKeyId || null,
@@ -240,6 +242,8 @@ export function createCreditsRepository(db) {
             amount,
             requestId || null,
             Number(inputTokens) || 0,
+            Number(cachedInputTokens) || 0,
+            Number(cacheWriteInputTokens) || 0,
             Number(outputTokens) || 0,
             (Number(inputTokens) || 0) + (Number(outputTokens) || 0),
             Number(providerCostUsd) || 0,
@@ -358,6 +362,8 @@ export function createCreditsRepository(db) {
       provider,
       providerModel,
       inputTokens = 0,
+      cachedInputTokens = 0,
+      cacheWriteInputTokens = 0,
       outputTokens = 0,
       requestId,
       status = 'success'
@@ -367,9 +373,9 @@ export function createCreditsRepository(db) {
       await db.query(
         `INSERT INTO usage_records
          (workspace_id, api_key_id, service, model, public_model, provider, provider_model,
-          credits, request_id, status, input_tokens, output_tokens, total_tokens,
+          credits, request_id, status, input_tokens, cached_input_tokens, cache_write_input_tokens, output_tokens, total_tokens,
           provider_cost_usd, margin_multiplier, charged_usd, reservation_credits, refunded_credits)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, 0, $8, $9, $10, $11, $12, 0, 0, 0, 0, 0)`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, 0, $8, $9, $10, $11, $12, $13, $14, 0, 0, 0, 0, 0)`,
         [
           workspaceId,
           apiKeyId || null,
@@ -381,6 +387,8 @@ export function createCreditsRepository(db) {
           requestId || null,
           status,
           Number(inputTokens) || 0,
+          Number(cachedInputTokens) || 0,
+          Number(cacheWriteInputTokens) || 0,
           Number(outputTokens) || 0,
           (Number(inputTokens) || 0) + (Number(outputTokens) || 0)
         ]

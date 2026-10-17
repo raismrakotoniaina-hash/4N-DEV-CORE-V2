@@ -16,6 +16,8 @@ export function createUsageRepository(db) {
            request_id,
            status,
            input_tokens,
+           cached_input_tokens,
+           cache_write_input_tokens,
            output_tokens,
            total_tokens,
            provider_cost_usd,
