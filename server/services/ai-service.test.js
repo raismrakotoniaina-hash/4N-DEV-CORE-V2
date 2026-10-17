@@ -85,11 +85,23 @@ test('cached input tokens use separate provider and customer rates', () => {
   assert.equal(Number(result.marginMultiplier.toFixed(4)), 1.6667);
 });
 
-test('cached input cannot exceed total input tokens', () => {
+test('cached and cache-write tokens cannot exceed total input tokens', () => {
   assert.throws(
-    () => calculateTokenCost(10, 0, providerPricing, customerPricing, 11),
+    () => calculateTokenCost(10, 0, providerPricing, customerPricing, 8, 3),
     (error) => error.code === 'invalid_usage'
   );
+});
+
+test('cache writes use their own standard provider and customer rates', () => {
+  const result = calculateTokenCost(
+    1_000_000, 0,
+    { input_cost_per_1m_usd: '0.10', cached_input_cost_per_1m_usd: '0.01', cache_write_cost_per_1m_usd: '0.125', output_cost_per_1m_usd: '0.50' },
+    { input_price_per_1m_usd: '0.1666666667', cached_input_price_per_1m_usd: '0.0166666667', cache_write_price_per_1m_usd: '0.2083333333', output_price_per_1m_usd: '0.8333333333' },
+    200_000, 300_000
+  );
+  assert.equal(Number(result.providerCostUsd.toFixed(4)), 0.0725);
+  assert.equal(Number(result.chargedUsd.toFixed(4)), 0.1208);
+  assert.equal(Number(result.marginMultiplier.toFixed(3)), 1.667);
 });
 
 
@@ -104,6 +116,7 @@ test('coding settlement includes cached input tokens in its actual token charge'
         language: 'javascript',
         inputTokens: 8,
         cachedInputTokens: 3,
+        cacheWriteInputTokens: 2,
         outputTokens: 4
       };
     }
@@ -113,6 +126,7 @@ test('coding settlement includes cached input tokens in its actual token charge'
       return {
         input_cost_per_1m_usd: '4',
         cached_input_cost_per_1m_usd: '0.4',
+        cache_write_cost_per_1m_usd: '5',
         output_cost_per_1m_usd: '20'
       };
     },
@@ -120,6 +134,7 @@ test('coding settlement includes cached input tokens in its actual token charge'
       return {
         input_price_per_1m_usd: '6.6666666667',
         cached_input_price_per_1m_usd: '0.6666666667',
+        cache_write_price_per_1m_usd: '8.3333333333',
         output_price_per_1m_usd: '33.3333333333'
       };
     },
@@ -146,6 +161,7 @@ test('coding settlement includes cached input tokens in its actual token charge'
   );
 
   assert.equal(settled.cachedInputTokens, 3);
+  assert.equal(settled.cacheWriteInputTokens, 2);
   assert.equal(settled.inputTokens, 8);
   assert.equal(settled.outputTokens, 4);
   assert.ok(settled.chargedUsd > 0);
