@@ -135,14 +135,18 @@ app.use('/api/billing', createBillingRouter({
 }));
 
 const modelCatalog = [
-  { id: '4n-chat', service: 'chat', status: 'active' },
-  { id: '4n-code', service: 'coding', status: 'active' },
-  { id: '4n-image', service: 'image', status: 'active' }
+  { id: '4n-luna-5.6', name: 'Luna 5.6', service: 'chat', provider: 'openai', status: 'active' },
+  { id: '4n-luna-6', name: 'Luna 6', service: 'chat', provider: 'openai', status: 'active' },
+  { id: '4n-sol-5.6', name: 'Sol 5.6', service: 'coding', provider: 'openai', status: 'active' },
+  { id: '4n-sol-6.1', name: 'Sol 6.1', service: 'coding', provider: 'openai', status: 'active' },
+  { id: '4n-image', name: '4N Image', service: 'image', status: 'active' }
 ];
 
 const providerModelCatalog = {
-  '4n-chat': config.providerChatModel,
-  '4n-code': config.providerCodingModel,
+  '4n-luna-5.6': 'gpt-5.6-luna',
+  '4n-luna-6': 'gpt-6-luna',
+  '4n-sol-5.6': 'gpt-5.6-sol',
+  '4n-sol-6.1': 'gpt-6.1-sol',
   '4n-image': config.providerImageModel,
   '4n-builder': config.providerBuilderModel
 };
