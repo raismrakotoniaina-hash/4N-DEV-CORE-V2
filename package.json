@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "test": "node --test server/services/*.test.js server/routes/*.test.js",
+    "test": "node --test server/services/*.test.js server/routes/*.test.js server/db/repositories/*.test.js",
     "preview": "vite preview",
     "start": "node server/index.js",
     "db:migrate": "node server/db/migrate.js"
