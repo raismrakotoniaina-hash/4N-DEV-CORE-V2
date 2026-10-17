@@ -370,7 +370,7 @@ export function createAiService({
       const { publicModel, providerModel } = resolveModel('image', input.model);
       const pricing = await getPricing(providerModel, publicModel, 'image');
       const reservationCharge = pricing
-        ? calculateImageCost(pricing.providerPricing, pricing.customerPricing).chargedCredits
+        ? calculateImageCost(pricing.providerPricing, pricing.customerPricing).chargedUsd
         : 0;
 
       return executeWithBilling(req, {
