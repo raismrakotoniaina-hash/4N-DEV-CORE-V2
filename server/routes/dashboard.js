@@ -46,7 +46,7 @@ export default function createDashboardRouter({ db, sessionMiddleware, corsOrigi
            WHERE currency IN ('EUR', 'MGA')`
         ),
         db.query(
-          `SELECT public_model, service, input_price_per_1m_usd, output_price_per_1m_usd, image_price_usd
+          `SELECT public_model, service, input_price_per_1m_usd, cached_input_price_per_1m_usd, output_price_per_1m_usd, image_price_usd
            FROM customer_model_pricing
            WHERE status = 'active' AND effective_from <= now()
              AND (effective_to IS NULL OR effective_to > now())
@@ -98,6 +98,7 @@ export default function createDashboardRouter({ db, sessionMiddleware, corsOrigi
           model: row.public_model,
           service: row.service,
           inputPricePer1MUsd: row.input_price_per_1m_usd === null ? null : Number(row.input_price_per_1m_usd),
+          cachedInputPricePer1MUsd: row.cached_input_price_per_1m_usd === null ? null : Number(row.cached_input_price_per_1m_usd),
           outputPricePer1MUsd: row.output_price_per_1m_usd === null ? null : Number(row.output_price_per_1m_usd),
           imagePriceUsd: row.image_price_usd === null ? null : Number(row.image_price_usd)
         })),
