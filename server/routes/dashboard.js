@@ -19,8 +19,8 @@ export default function createDashboardRouter({ db, sessionMiddleware, corsOrigi
       const workspaceId = req.workspace.id;
       const [accountResult, usageResult, ratesResult, customerPricingResult] = await Promise.all([
         db.query(
-          `SELECT balance, reserved_balance
-           FROM credit_accounts
+          `SELECT balance_usd, reserved_usd
+           FROM usd_wallet_accounts
            WHERE workspace_id = $1
            LIMIT 1`,
           [workspaceId]
@@ -55,11 +55,11 @@ export default function createDashboardRouter({ db, sessionMiddleware, corsOrigi
         )
       ]);
 
-      const account = accountResult.rows[0] || { balance: 0, reserved_balance: 0 };
+      const account = accountResult.rows[0] || { balance_usd: 0, reserved_usd: 0 };
       const usage = usageResult.rows[0] || {};
-      const balance = Number(account.balance || 0);
-      const reserved = Number(account.reserved_balance || 0);
-      const availableUsd = Math.max(0, balance - reserved) / 100;
+      const balance = Number(account.balance_usd || 0);
+      const reserved = Number(account.reserved_usd || 0);
+      const availableUsd = Math.max(0, balance - reserved);
       const rates = Object.fromEntries(
         ratesResult.rows.map((row) => [row.currency, Number(row.usd_to_currency)])
       );
@@ -74,9 +74,10 @@ export default function createDashboardRouter({ db, sessionMiddleware, corsOrigi
           name: req.workspace.name,
           plan: 'Prepaid USD',
           currency: 'USD',
-          credits: Math.max(0, balance - reserved),
-          balanceUsd: Number((balance / 100).toFixed(6)),
-          reservedUsd: Number((reserved / 100).toFixed(6)),
+          // Legacy credit units are intentionally not converted to USD.
+          credits: null,
+          balanceUsd: Number(balance.toFixed(8)),
+          reservedUsd: Number(reserved.toFixed(8)),
           availableBalanceUsd: Number(availableUsd.toFixed(6)),
           availableBalanceEur: money(availableUsd, 'EUR'),
           availableBalanceMga: money(availableUsd, 'MGA'),
