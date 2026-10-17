@@ -83,6 +83,14 @@ export default function createBillingRouter({
         });
       }
 
+      if (!parsed.currency || parsed.currency !== String(transaction.currency).toUpperCase()) {
+        return res.status(400).json({
+          success: false,
+          error: { code: 'webhook_currency_mismatch', message: 'Webhook currency does not match the billing transaction.' },
+          requestId: req.requestId
+        });
+      }
+
       if (!zopayo.amountMatches(parsed.amountPaid, transaction.amount)) {
         return res.status(400).json({
           success: false,
