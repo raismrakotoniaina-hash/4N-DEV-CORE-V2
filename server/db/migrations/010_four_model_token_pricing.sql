@@ -36,6 +36,17 @@ VALUES
   ('openai', 'gpt-5.6-sol',  'coding', 4.00, 0.40, 20.00, NULL, 1.6667, now(), 'active'),
   ('openai', 'gpt-6.1-sol',  'coding', 2.00, 0.10, 10.00, NULL, 1.6667, now(), 'active');
 
+-- Retire prior active tariff rows for these public IDs while preserving them as history.
+UPDATE customer_model_pricing
+SET status = 'inactive', effective_to = COALESCE(effective_to, now())
+WHERE (public_model, service) IN (
+  ('4n-luna-5.6', 'chat'),
+  ('4n-luna-6', 'chat'),
+  ('4n-sol-5.6', 'coding'),
+  ('4n-sol-6.1', 'coding')
+)
+AND status = 'active';
+
 -- Use stable, separately selectable public model IDs; never expose provider IDs as API secrets.
 INSERT INTO customer_model_pricing (
   public_model, service,
