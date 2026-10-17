@@ -71,3 +71,23 @@ test('missing image price or provider cost fails closed', () => {
     (error) => error.code === 'pricing_not_configured' && error.status === 503
   );
 });
+
+test('cached input tokens use separate provider and customer rates', () => {
+  const result = calculateTokenCost(
+    1_000_000,
+    1_000_000,
+    { input_cost_per_1m_usd: '0.10', cached_input_cost_per_1m_usd: '0.01', output_cost_per_1m_usd: '0.50' },
+    { input_price_per_1m_usd: '0.1666666667', cached_input_price_per_1m_usd: '0.0166666667', output_price_per_1m_usd: '0.8333333333' },
+    500_000
+  );
+  assert.equal(Number(result.providerCostUsd.toFixed(4)), 0.305);
+  assert.equal(Number(result.chargedUsd.toFixed(4)), 0.5083);
+  assert.equal(Number(result.marginMultiplier.toFixed(4)), 1.6667);
+});
+
+test('cached input cannot exceed total input tokens', () => {
+  assert.throws(
+    () => calculateTokenCost(10, 0, providerPricing, customerPricing, 11),
+    (error) => error.code === 'invalid_usage'
+  );
+});
