@@ -47,10 +47,11 @@ function estimateInputTokens(value) {
   return Math.max(1, Math.ceil(textLength(value) / 4));
 }
 
-export function calculateTokenCost(inputTokens, outputTokens, providerPricing, customerPricing) {
+export function calculateTokenCost(inputTokens, outputTokens, providerPricing, customerPricing, cachedInputTokens = 0) {
   const input = Number(inputTokens);
   const output = Number(outputTokens);
-  if (!Number.isFinite(input) || !Number.isFinite(output) || input < 0 || output < 0) {
+  const cached = Number(cachedInputTokens);
+  if (!Number.isFinite(input) || !Number.isFinite(output) || !Number.isFinite(cached) || input < 0 || output < 0 || cached < 0 || cached > input) {
     throw serviceError('invalid_usage', 'Token usage must be finite non-negative numbers.');
   }
 
@@ -61,15 +62,17 @@ export function calculateTokenCost(inputTokens, outputTokens, providerPricing, c
     throw serviceError('pricing_not_configured', 'Provider input and output costs must be configured.', 503);
   }
   const providerInputRate = Number(providerPricing.input_cost_per_1m_usd);
+  const providerCachedInputRate = Number(providerPricing.cached_input_cost_per_1m_usd ?? providerPricing.input_cost_per_1m_usd);
   const providerOutputRate = Number(providerPricing.output_cost_per_1m_usd);
   if (
-    !Number.isFinite(providerInputRate) || !Number.isFinite(providerOutputRate) ||
-    providerInputRate < 0 || providerOutputRate < 0
+    !Number.isFinite(providerInputRate) || !Number.isFinite(providerCachedInputRate) || !Number.isFinite(providerOutputRate) ||
+    providerInputRate < 0 || providerCachedInputRate < 0 || providerOutputRate < 0
   ) {
     throw serviceError('pricing_not_configured', 'Provider pricing is invalid.', 503);
   }
   const providerCostUsd =
-    (input / 1_000_000) * providerInputRate +
+    ((input - cached) / 1_000_000) * providerInputRate +
+    (cached / 1_000_000) * providerCachedInputRate +
     (output / 1_000_000) * providerOutputRate;
 
   if (
@@ -79,12 +82,14 @@ export function calculateTokenCost(inputTokens, outputTokens, providerPricing, c
     throw serviceError('customer_pricing_not_configured', 'Both 4N DEV input and output tariffs must be configured for this model.', 503);
   }
   const customerInputRate = Number(customerPricing.input_price_per_1m_usd);
+  const customerCachedInputRate = Number(customerPricing.cached_input_price_per_1m_usd ?? customerPricing.input_price_per_1m_usd);
   const customerOutputRate = Number(customerPricing.output_price_per_1m_usd);
-  if (!Number.isFinite(customerInputRate) || !Number.isFinite(customerOutputRate) || customerInputRate < 0 || customerOutputRate < 0) {
+  if (!Number.isFinite(customerInputRate) || !Number.isFinite(customerCachedInputRate) || !Number.isFinite(customerOutputRate) || customerInputRate < 0 || customerCachedInputRate < 0 || customerOutputRate < 0) {
     throw serviceError('customer_pricing_not_configured', '4N DEV customer tariff is not configured for this model.', 503);
   }
   const chargedUsd =
-    (input / 1_000_000) * customerInputRate +
+    ((input - cached) / 1_000_000) * customerInputRate +
+    (cached / 1_000_000) * customerCachedInputRate +
     (output / 1_000_000) * customerOutputRate;
   const marginMultiplier = providerCostUsd > 0 ? chargedUsd / providerCostUsd : 0;
 
@@ -287,7 +292,7 @@ export function createAiService({
           model: providerModel,
           max_output_tokens: effectiveMaxOutput
         }),
-        getActualCharge: (result) => calculateTokenCost(result.inputTokens, result.outputTokens, pricing.providerPricing, pricing.customerPricing),
+        getActualCharge: (result) => calculateTokenCost(result.inputTokens, result.outputTokens, pricing.providerPricing, pricing.customerPricing, result.cachedInputTokens || 0),
         buildResponse: (result, charge) => ({
           service: 'chat',
           model: publicModel,
