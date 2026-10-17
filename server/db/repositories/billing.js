@@ -19,7 +19,7 @@ export function createBillingRepository(db) {
       if (!db) throw new Error('database_not_configured');
 
       const params = [];
-      let where = 'p.active = true AND pp.active = true';
+      let where = "p.active = true AND pp.active = true AND pp.currency = 'USD'";
 
       if (currency) {
         params.push(normalizeCurrency(currency));
@@ -60,6 +60,7 @@ export function createBillingRepository(db) {
          WHERE p.code = $1
            AND p.active = true
            AND pp.currency = $2
+           AND pp.currency = 'USD'
            AND pp.active = true
          LIMIT 1`,
         [code, normalizeCurrency(currency)]
@@ -76,6 +77,13 @@ export function createBillingRepository(db) {
       metadata = {}
     }) {
       if (!db) throw new Error('database_not_configured');
+
+      // The canonical wallet is USD-only until verified FX conversion is implemented.
+      if (normalizeCurrency(currency) !== 'USD') {
+        const error = new Error('package_not_available');
+        error.code = 'package_not_available';
+        throw error;
+      }
 
       const packagePrice = await this.getPackagePrice({
         code: packageCode,
