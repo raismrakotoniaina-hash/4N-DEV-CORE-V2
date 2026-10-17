@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { calculateImageCost, calculateTokenCost } from './ai-service.js';
+import { calculateImageCost, calculateTokenCost, createAiService } from './ai-service.js';
 
 const providerPricing = {
   input_cost_per_1m_usd: '0.20',
@@ -90,4 +90,63 @@ test('cached input cannot exceed total input tokens', () => {
     () => calculateTokenCost(10, 0, providerPricing, customerPricing, 11),
     (error) => error.code === 'invalid_usage'
   );
+});
+
+
+test('coding settlement includes cached input tokens in its actual token charge', async () => {
+  let settled;
+  const provider = {
+    id: 'openai',
+    async coding() {
+      return {
+        model: 'gpt-5.6-sol',
+        output: 'ok',
+        language: 'javascript',
+        inputTokens: 8,
+        cachedInputTokens: 3,
+        outputTokens: 4
+      };
+    }
+  };
+  const creditsService = {
+    async getPricing() {
+      return {
+        input_cost_per_1m_usd: '4',
+        cached_input_cost_per_1m_usd: '0.4',
+        output_cost_per_1m_usd: '20'
+      };
+    },
+    async getCustomerPricing() {
+      return {
+        input_price_per_1m_usd: '6.6666666667',
+        cached_input_price_per_1m_usd: '0.6666666667',
+        output_price_per_1m_usd: '33.3333333333'
+      };
+    },
+    async reserve({ credits }) {
+      return { id: 'reservation-1', reserved_credits: Math.max(credits, 100) };
+    },
+    async settle(details) {
+      settled = details;
+    },
+    async failReservation() {
+      throw new Error('unexpected reservation failure');
+    }
+  };
+  const ai = createAiService({
+    provider,
+    creditsService,
+    modelCatalog: [{ id: '4n-sol-5.6', service: 'coding', status: 'active' }],
+    providerModelCatalog: { '4n-sol-5.6': 'gpt-5.6-sol' }
+  });
+
+  await ai.coding(
+    { auth: { workspaceId: 'workspace-1', apiKeyId: 'key-1' }, requestId: 'request-1' },
+    { model: '4n-sol-5.6', prompt: 'write a tiny function', max_output_tokens: 4 }
+  );
+
+  assert.equal(settled.cachedInputTokens, 3);
+  assert.equal(settled.inputTokens, 8);
+  assert.equal(settled.outputTokens, 4);
+  assert.ok(settled.chargedUsd > 0);
 });
