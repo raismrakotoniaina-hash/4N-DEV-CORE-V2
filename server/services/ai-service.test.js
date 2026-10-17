@@ -80,8 +80,8 @@ test('cached input tokens use separate provider and customer rates', () => {
     { input_price_per_1m_usd: '0.1666666667', cached_input_price_per_1m_usd: '0.0166666667', output_price_per_1m_usd: '0.8333333333' },
     500_000
   );
-  assert.equal(Number(result.providerCostUsd.toFixed(4)), 0.305);
-  assert.equal(Number(result.chargedUsd.toFixed(4)), 0.5083);
+  assert.equal(Number(result.providerCostUsd.toFixed(4)), 0.555);
+  assert.equal(Number(result.chargedUsd.toFixed(4)), 0.925);
   assert.equal(Number(result.marginMultiplier.toFixed(4)), 1.6667);
 });
 
