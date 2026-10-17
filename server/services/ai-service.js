@@ -236,6 +236,7 @@ export function createAiService({
         provider: provider.id,
         providerModel,
         inputTokens: result.inputTokens || 0,
+        cachedInputTokens: result.cachedInputTokens || 0,
         outputTokens: result.outputTokens || 0,
         providerCostUsd: charge.providerCostUsd,
         marginMultiplier: charge.marginMultiplier,
