@@ -22,6 +22,7 @@ import { createCreditsService } from './services/credits-service.js';
 import { createBillingService } from './services/billing-service.js';
 import { createAiService } from './services/ai-service.js';
 import { createProvider } from './providers/index.js';
+import { modelCatalog, aiServiceModelCatalog, providerModelCatalog as textProviderModelCatalog } from './config/model-catalog.js';
 import createApiKeysRouter from './routes/api-keys.js';
 import createBillingRouter from './routes/billing.js';
 import { createZopayoProvider } from './payments/zopayo.js';
@@ -136,21 +137,9 @@ app.use('/api/billing', createBillingRouter({
   zopayoWebhookSecret: config.zopayoWebhookSecret
 }));
 
-const modelCatalog = [
-  { id: '4n-luna-5.6', name: 'Luna 5.6', service: 'chat', provider: 'openai', status: 'active' },
-  { id: '4n-luna-6', name: 'Luna 6', service: 'chat', provider: 'openai', status: 'active' },
-  { id: '4n-sol-5.6', name: 'Sol 5.6', service: 'coding', provider: 'openai', status: 'active' },
-  { id: '4n-sol-6.1', name: 'Sol 6.1', service: 'coding', provider: 'openai', status: 'active' },
-  { id: '4n-image', name: '4N Image', service: 'image', status: 'active' }
-];
-
 const providerModelCatalog = {
-  '4n-luna-5.6': 'gpt-5.6-luna',
-  '4n-luna-6': 'gpt-6-luna',
-  '4n-sol-5.6': 'gpt-5.6-sol',
-  '4n-sol-6.1': 'gpt-6.1-sol',
-  '4n-image': config.providerImageModel,
-  '4n-builder': config.providerBuilderModel
+  ...textProviderModelCatalog,
+  '4n-image': config.providerImageModel
 };
 
 const provider = createProvider(config);
@@ -160,7 +149,7 @@ const aiService = provider && creditsService
       provider,
       creditsService,
       usdWalletRepository: repositories?.usdWallet,
-      modelCatalog,
+      modelCatalog: aiServiceModelCatalog,
       providerModelCatalog
     })
   : null;
