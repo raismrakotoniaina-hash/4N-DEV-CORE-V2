@@ -16,6 +16,5 @@ export const providerModelCatalog = Object.freeze({
   '4n-chat-naya-5.6': 'gpt-5.6-luna',
   '4n-chat-naya-6': 'gpt-6-luna',
   '4n-code-nael-5.6': 'gpt-5.6-sol',
-  '4n-code-nael-6.1': 'gpt-6.1-sol',
-  '4n-image': 'gpt-image-2.5-flare'
+  '4n-code-nael-6.1': 'gpt-6.1-sol'
 });
