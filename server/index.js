@@ -134,21 +134,26 @@ app.use('/api/billing', createBillingRouter({
   zopayoWebhookSecret: config.zopayoWebhookSecret
 }));
 
+// Public API exposes exactly the four requested text/coding models.
 const modelCatalog = [
-  { id: '4n-luna-5.6', name: 'Luna 5.6', service: 'chat', provider: 'openai', status: 'active' },
-  { id: '4n-luna-6', name: 'Luna 6', service: 'chat', provider: 'openai', status: 'active' },
-  { id: '4n-sol-5.6', name: 'Sol 5.6', service: 'coding', provider: 'openai', status: 'active' },
-  { id: '4n-sol-6.1', name: 'Sol 6.1', service: 'coding', provider: 'openai', status: 'active' },
+  { id: '4n-chat-naya-5.6', name: 'Luna 5.6', service: 'chat', provider: 'openai', status: 'active' },
+  { id: '4n-chat-naya-6', name: 'Luna 6', service: 'chat', provider: 'openai', status: 'active' },
+  { id: '4n-code-nael-5.6', name: 'Sol 5.6', service: 'coding', provider: 'openai', status: 'active' },
+  { id: '4n-code-nael-6.1', name: 'Sol 6.1', service: 'coding', provider: 'openai', status: 'active' }
+];
+
+// Image generation remains available internally without becoming a fifth text model.
+const aiServiceModelCatalog = [
+  ...modelCatalog,
   { id: '4n-image', name: '4N Image', service: 'image', status: 'active' }
 ];
 
 const providerModelCatalog = {
-  '4n-luna-5.6': 'gpt-5.6-luna',
-  '4n-luna-6': 'gpt-6-luna',
-  '4n-sol-5.6': 'gpt-5.6-sol',
-  '4n-sol-6.1': 'gpt-6.1-sol',
-  '4n-image': config.providerImageModel,
-  '4n-builder': config.providerBuilderModel
+  '4n-chat-naya-5.6': 'gpt-5.6-luna',
+  '4n-chat-naya-6': 'gpt-6-luna',
+  '4n-code-nael-5.6': 'gpt-5.6-sol',
+  '4n-code-nael-6.1': 'gpt-6.1-sol',
+  '4n-image': config.providerImageModel
 };
 
 const provider = createProvider(config);
@@ -157,7 +162,7 @@ const aiService = provider && creditsService
   ? createAiService({
       provider,
       creditsService,
-      modelCatalog,
+      modelCatalog: aiServiceModelCatalog,
       providerModelCatalog
     })
   : null;
