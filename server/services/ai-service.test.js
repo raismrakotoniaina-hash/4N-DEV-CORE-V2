@@ -119,3 +119,38 @@ test('image endpoint model stays internal and is not exposed as a fifth public t
   assert.equal(aiServiceModelCatalog.at(-1).id, '4n-image');
   assert.equal(modelCatalog.some((model) => model.id === '4n-image'), false);
 });
+
+test('cache-write tokens use their own provider and customer rates', () => {
+  const result = calculateTokenCost(
+    1_000_000,
+    100_000,
+    { input_cost_per_1m_usd: '0.20', cached_input_cost_per_1m_usd: '0.02', cache_write_cost_per_1m_usd: '0.25', output_cost_per_1m_usd: '1.20' },
+    { input_price_per_1m_usd: '0.50', cached_input_price_per_1m_usd: '0.05', cache_write_price_per_1m_usd: '0.625', output_price_per_1m_usd: '3.00' },
+    200_000,
+    300_000
+  );
+  assert.equal(Number(result.providerCostUsd.toFixed(6)), 0.299);
+  assert.equal(Number(result.chargedUsd.toFixed(6)), 0.7475);
+});
+
+test('cache-write usage fails closed if either cache-write tariff is missing', () => {
+  assert.throws(
+    () => calculateTokenCost(10, 1, providerPricing, customerPricing, 0, 2),
+    (error) => error.code === 'pricing_not_configured'
+  );
+  assert.throws(
+    () => calculateTokenCost(10, 1,
+      { ...providerPricing, cache_write_cost_per_1m_usd: '0.25' },
+      customerPricing, 0, 2),
+    (error) => error.code === 'customer_pricing_not_configured'
+  );
+});
+
+test('cached-read plus cache-write tokens cannot exceed input tokens', () => {
+  assert.throws(
+    () => calculateTokenCost(10, 0,
+      { ...providerPricing, cache_write_cost_per_1m_usd: '0.25' },
+      { ...customerPricing, cache_write_price_per_1m_usd: '0.625' }, 6, 5),
+    (error) => error.code === 'invalid_usage'
+  );
+});
