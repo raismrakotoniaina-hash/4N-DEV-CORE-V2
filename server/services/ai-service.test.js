@@ -151,13 +151,13 @@ test('coding settlement includes cached input tokens in its actual token charge'
   const ai = createAiService({
     provider,
     creditsService,
-    modelCatalog: [{ id: '4n-sol-5.6', service: 'coding', status: 'active' }],
-    providerModelCatalog: { '4n-sol-5.6': 'gpt-5.6-sol' }
+    modelCatalog: [{ id: '4n-code-nael-5.6', service: 'coding', status: 'active' }],
+    providerModelCatalog: { '4n-code-nael-5.6': 'gpt-5.6-sol' }
   });
 
   await ai.coding(
     { auth: { workspaceId: 'workspace-1', apiKeyId: 'key-1' }, requestId: 'request-1' },
-    { model: '4n-sol-5.6', prompt: 'write a tiny function', max_output_tokens: 4 }
+    { model: '4n-code-nael-5.6', prompt: 'write a tiny function', max_output_tokens: 4 }
   );
 
   assert.equal(settled.cachedInputTokens, 3);
@@ -165,4 +165,47 @@ test('coding settlement includes cached input tokens in its actual token charge'
   assert.equal(settled.inputTokens, 8);
   assert.equal(settled.outputTokens, 4);
   assert.ok(settled.chargedUsd > 0);
+});
+
+
+test('canonical four public model IDs map to the requested OpenAI provider IDs', async () => {
+  const mappings = [
+    ['4n-chat-naya-5.6', 'chat', 'gpt-5.6-luna'],
+    ['4n-chat-naya-6', 'chat', 'gpt-6-luna'],
+    ['4n-code-nael-5.6', 'coding', 'gpt-5.6-sol'],
+    ['4n-code-nael-6.1', 'coding', 'gpt-6.1-sol']
+  ];
+  for (const [publicModel, service, providerModel] of mappings) {
+    const catalog = [{ id: publicModel, service, status: 'active' }];
+    const resolved = [];
+    const provider = {
+      id: 'openai',
+      async chat(args) { resolved.push(args.model); return { model: args.model, message: { role: 'assistant', content: 'ok' }, inputTokens: 1, outputTokens: 1 }; },
+      async coding(args) { resolved.push(args.model); return { model: args.model, output: 'ok', inputTokens: 1, outputTokens: 1 }; }
+    };
+    const creditsService = {
+      async getPricing() { return { input_cost_per_1m_usd: '1', output_cost_per_1m_usd: '1' }; },
+      async getCustomerPricing() { return { input_price_per_1m_usd: '2', output_price_per_1m_usd: '2' }; },
+      async reserve() { return { id: 'reservation-test', reserved_credits: 100 }; },
+      async settle() {},
+      async failReservation() {},
+      async recordNonBillableUsage() {}
+    };
+    const ai = createAiService({
+      provider, creditsService, modelCatalog: catalog,
+      providerModelCatalog: { [publicModel]: providerModel }
+    });
+    if (service === 'chat') {
+      await ai.chat(
+        { auth: { workspaceId: 'workspace-test', apiKeyId: 'key-test' }, requestId: 'request-test' },
+        { model: publicModel, messages: [{ role: 'user', content: 'test' }] }
+      );
+    } else {
+      await ai.coding(
+        { auth: { workspaceId: 'workspace-test', apiKeyId: 'key-test' }, requestId: 'request-test' },
+        { model: publicModel, prompt: 'test' }
+      );
+    }
+    assert.deepEqual(resolved, [providerModel]);
+  }
 });
