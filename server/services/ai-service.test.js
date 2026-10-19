@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { calculateImageCost, calculateTokenCost } from './ai-service.js';
+import { modelCatalog, aiServiceModelCatalog, providerModelCatalog } from '../config/model-catalog.js';
 
 const providerPricing = {
   input_cost_per_1m_usd: '0.20',
@@ -90,4 +91,31 @@ test('cached input cannot exceed total input tokens', () => {
     () => calculateTokenCost(10, 0, providerPricing, customerPricing, 11),
     (error) => error.code === 'invalid_usage'
   );
+});
+
+
+test('public API model catalog contains exactly the four requested IDs', () => {
+  assert.deepEqual(modelCatalog.map((model) => model.id), [
+    '4n-chat-naya-5.6',
+    '4n-chat-naya-6',
+    '4n-code-nael-5.6',
+    '4n-code-nael-6.1'
+  ]);
+  assert.equal(modelCatalog.length, 4);
+  assert.deepEqual(modelCatalog.map((model) => model.service), ['chat', 'chat', 'coding', 'coding']);
+});
+
+test('provider mappings use the four verified provider model IDs', () => {
+  assert.deepEqual(providerModelCatalog, {
+    '4n-chat-naya-5.6': 'gpt-5.6-luna',
+    '4n-chat-naya-6': 'gpt-6-luna',
+    '4n-code-nael-5.6': 'gpt-5.6-sol',
+    '4n-code-nael-6.1': 'gpt-6.1-sol'
+  });
+});
+
+test('image endpoint model stays internal and is not exposed as a fifth public text model', () => {
+  assert.equal(aiServiceModelCatalog.length, 5);
+  assert.equal(aiServiceModelCatalog.at(-1).id, '4n-image');
+  assert.equal(modelCatalog.some((model) => model.id === '4n-image'), false);
 });
