@@ -13,6 +13,7 @@ function tokenUsage(usage) {
   return {
     inputTokens: Number(usage?.input_tokens || 0),
     cachedInputTokens: Number(usage?.input_tokens_details?.cached_tokens || 0),
+    cacheWriteInputTokens: Number(usage?.input_tokens_details?.cache_write_tokens || 0),
     outputTokens: Number(usage?.output_tokens || 0)
   };
 }
