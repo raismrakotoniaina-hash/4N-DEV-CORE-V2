@@ -341,7 +341,14 @@ export function createAiService({
           model: providerModel,
           max_output_tokens: effectiveMaxOutput
         }),
-        getActualCharge: (result) => calculateTokenCost(result.inputTokens, result.outputTokens, pricing.providerPricing, pricing.customerPricing),
+        getActualCharge: (result) => calculateTokenCost(
+          result.inputTokens,
+          result.outputTokens,
+          pricing.providerPricing,
+          pricing.customerPricing,
+          result.cachedInputTokens || 0,
+          result.cacheWriteInputTokens || 0
+        ),
         buildResponse: (result, charge) => ({
           service: 'coding',
           model: publicModel,

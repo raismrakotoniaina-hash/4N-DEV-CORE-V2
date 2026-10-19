@@ -192,4 +192,6 @@ test('USD wallet settlement metadata preserves cached-read and cache-write token
   assert.equal(settled.metadata.inputTokens, 8);
   assert.equal(settled.metadata.outputTokens, 4);
   assert.ok(settled.chargedUsd > 0);
+  assert.ok(Math.abs(settled.chargedUsd - 0.000258) < 1e-12);
+  assert.ok(Math.abs(settled.metadata.providerCostUsd - 0.0001032) < 1e-12);
 });

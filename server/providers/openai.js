@@ -18,9 +18,11 @@ function tokenUsage(usage) {
   };
 }
 
-export function createOpenAIProvider({ apiKey }) {
-  if (!apiKey) throw createProviderError('provider_unavailable', 'OPENAI_API_KEY is not configured.', 503);
-  const client = new OpenAI({ apiKey });
+export function createOpenAIProvider({ apiKey, client: injectedClient } = {}) {
+  if (!injectedClient && !apiKey) {
+    throw createProviderError('provider_unavailable', 'OPENAI_API_KEY is not configured.', 503);
+  }
+  const client = injectedClient || new OpenAI({ apiKey });
 
   return {
     id: 'openai',
@@ -39,6 +41,7 @@ export function createOpenAIProvider({ apiKey }) {
           message: { role: 'assistant', content: response.output_text || '' },
           inputTokens: usage.inputTokens,
           cachedInputTokens: usage.cachedInputTokens,
+          cacheWriteInputTokens: usage.cacheWriteInputTokens,
           outputTokens: usage.outputTokens
         };
       } catch (error) {
@@ -64,6 +67,7 @@ export function createOpenAIProvider({ apiKey }) {
           language: language || 'text',
           inputTokens: usage.inputTokens,
           cachedInputTokens: usage.cachedInputTokens,
+          cacheWriteInputTokens: usage.cacheWriteInputTokens,
           outputTokens: usage.outputTokens
         };
       } catch (error) {
