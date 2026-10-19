@@ -21,6 +21,7 @@ import { createCreditsService } from './services/credits-service.js';
 import { createBillingService } from './services/billing-service.js';
 import { createAiService } from './services/ai-service.js';
 import { createProvider } from './providers/index.js';
+import { modelCatalog, aiServiceModelCatalog, providerModelCatalog as textProviderModelCatalog } from './config/model-catalog.js';
 import createApiKeysRouter from './routes/api-keys.js';
 import createBillingRouter from './routes/billing.js';
 import { createZopayoProvider } from './payments/zopayo.js';
@@ -134,25 +135,8 @@ app.use('/api/billing', createBillingRouter({
   zopayoWebhookSecret: config.zopayoWebhookSecret
 }));
 
-// Public API exposes exactly the four requested chat/coding models.
-// The image model remains internal to the image endpoint and is not listed as a fifth text model.
-const modelCatalog = [
-  { id: '4n-chat-naya-5.6', name: 'Luna 5.6', service: 'chat', provider: 'openai', status: 'active' },
-  { id: '4n-chat-naya-6', name: 'Luna 6', service: 'chat', provider: 'openai', status: 'active' },
-  { id: '4n-code-nael-5.6', name: 'Sol 5.6', service: 'coding', provider: 'openai', status: 'active' },
-  { id: '4n-code-nael-6.1', name: 'Sol 6.1', service: 'coding', provider: 'openai', status: 'active' }
-];
-
-const aiServiceModelCatalog = [
-  ...modelCatalog,
-  { id: '4n-image', name: '4N Image', service: 'image', status: 'active' }
-];
-
 const providerModelCatalog = {
-  '4n-chat-naya-5.6': 'gpt-5.6-luna',
-  '4n-chat-naya-6': 'gpt-6-luna',
-  '4n-code-nael-5.6': 'gpt-5.6-sol',
-  '4n-code-nael-6.1': 'gpt-6.1-sol',
+  ...textProviderModelCatalog,
   '4n-image': config.providerImageModel
 };
 
