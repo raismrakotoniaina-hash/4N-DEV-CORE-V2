@@ -12,13 +12,17 @@ function normalizeError(error) {
 function tokenUsage(usage) {
   return {
     inputTokens: Number(usage?.input_tokens || 0),
+    cachedInputTokens: Number(usage?.input_tokens_details?.cached_tokens || 0),
+    cacheWriteInputTokens: Number(usage?.input_tokens_details?.cache_write_tokens || 0),
     outputTokens: Number(usage?.output_tokens || 0)
   };
 }
 
-export function createOpenAIProvider({ apiKey }) {
-  if (!apiKey) throw createProviderError('provider_unavailable', 'OPENAI_API_KEY is not configured.', 503);
-  const client = new OpenAI({ apiKey });
+export function createOpenAIProvider({ apiKey, client: injectedClient } = {}) {
+  if (!injectedClient && !apiKey) {
+    throw createProviderError('provider_unavailable', 'OPENAI_API_KEY is not configured.', 503);
+  }
+  const client = injectedClient || new OpenAI({ apiKey });
 
   return {
     id: 'openai',
@@ -36,6 +40,8 @@ export function createOpenAIProvider({ apiKey }) {
           model: response.model || model,
           message: { role: 'assistant', content: response.output_text || '' },
           inputTokens: usage.inputTokens,
+          cachedInputTokens: usage.cachedInputTokens,
+          cacheWriteInputTokens: usage.cacheWriteInputTokens,
           outputTokens: usage.outputTokens
         };
       } catch (error) {
@@ -60,6 +66,8 @@ export function createOpenAIProvider({ apiKey }) {
           output: response.output_text || '',
           language: language || 'text',
           inputTokens: usage.inputTokens,
+          cachedInputTokens: usage.cachedInputTokens,
+          cacheWriteInputTokens: usage.cacheWriteInputTokens,
           outputTokens: usage.outputTokens
         };
       } catch (error) {

@@ -47,55 +47,53 @@ function estimateInputTokens(value) {
   return Math.max(1, Math.ceil(textLength(value) / 4));
 }
 
-export function calculateTokenCost(inputTokens, outputTokens, providerPricing, customerPricing) {
+export function calculateTokenCost(inputTokens, outputTokens, providerPricing, customerPricing, cachedInputTokens = 0, cacheWriteInputTokens = 0) {
   const input = Number(inputTokens);
   const output = Number(outputTokens);
-  if (!Number.isFinite(input) || !Number.isFinite(output) || input < 0 || output < 0) {
+  const cached = Number(cachedInputTokens);
+  const written = Number(cacheWriteInputTokens);
+  if (!Number.isFinite(input) || !Number.isFinite(output) || !Number.isFinite(cached) || !Number.isFinite(written) || input < 0 || output < 0 || cached < 0 || written < 0 || cached + written > input) {
     throw serviceError('invalid_usage', 'Token usage must be finite non-negative numbers.');
   }
-
-  if (
-    providerPricing?.input_cost_per_1m_usd == null ||
-    providerPricing?.output_cost_per_1m_usd == null
-  ) {
+  if (providerPricing?.input_cost_per_1m_usd == null || providerPricing?.output_cost_per_1m_usd == null) {
     throw serviceError('pricing_not_configured', 'Provider input and output costs must be configured.', 503);
   }
+  if (written > 0 && providerPricing.cache_write_cost_per_1m_usd == null) {
+    throw serviceError('pricing_not_configured', 'Provider cache-write cost is not configured.', 503);
+  }
   const providerInputRate = Number(providerPricing.input_cost_per_1m_usd);
+  const providerCachedInputRate = Number(providerPricing.cached_input_cost_per_1m_usd ?? providerPricing.input_cost_per_1m_usd);
+  const providerCacheWriteRate = Number(providerPricing.cache_write_cost_per_1m_usd ?? providerPricing.input_cost_per_1m_usd);
   const providerOutputRate = Number(providerPricing.output_cost_per_1m_usd);
-  if (
-    !Number.isFinite(providerInputRate) || !Number.isFinite(providerOutputRate) ||
-    providerInputRate < 0 || providerOutputRate < 0
-  ) {
+  if (![providerInputRate, providerCachedInputRate, providerCacheWriteRate, providerOutputRate].every((rate) => Number.isFinite(rate) && rate >= 0)) {
     throw serviceError('pricing_not_configured', 'Provider pricing is invalid.', 503);
   }
   const providerCostUsd =
-    (input / 1_000_000) * providerInputRate +
+    ((input - cached - written) / 1_000_000) * providerInputRate +
+    (cached / 1_000_000) * providerCachedInputRate +
+    (written / 1_000_000) * providerCacheWriteRate +
     (output / 1_000_000) * providerOutputRate;
-
-  if (
-    customerPricing?.input_price_per_1m_usd == null ||
-    customerPricing?.output_price_per_1m_usd == null
-  ) {
+  if (customerPricing?.input_price_per_1m_usd == null || customerPricing?.output_price_per_1m_usd == null) {
     throw serviceError('customer_pricing_not_configured', 'Both 4N DEV input and output tariffs must be configured for this model.', 503);
   }
+  if (written > 0 && customerPricing.cache_write_price_per_1m_usd == null) {
+    throw serviceError('customer_pricing_not_configured', '4N DEV cache-write tariff is not configured for this model.', 503);
+  }
   const customerInputRate = Number(customerPricing.input_price_per_1m_usd);
+  const customerCachedInputRate = Number(customerPricing.cached_input_price_per_1m_usd ?? customerPricing.input_price_per_1m_usd);
+  const customerCacheWriteRate = Number(customerPricing.cache_write_price_per_1m_usd ?? customerPricing.input_price_per_1m_usd);
   const customerOutputRate = Number(customerPricing.output_price_per_1m_usd);
-  if (!Number.isFinite(customerInputRate) || !Number.isFinite(customerOutputRate) || customerInputRate < 0 || customerOutputRate < 0) {
+  if (![customerInputRate, customerCachedInputRate, customerCacheWriteRate, customerOutputRate].every((rate) => Number.isFinite(rate) && rate >= 0)) {
     throw serviceError('customer_pricing_not_configured', '4N DEV customer tariff is not configured for this model.', 503);
   }
   const chargedUsd =
-    (input / 1_000_000) * customerInputRate +
+    ((input - cached - written) / 1_000_000) * customerInputRate +
+    (cached / 1_000_000) * customerCachedInputRate +
+    (written / 1_000_000) * customerCacheWriteRate +
     (output / 1_000_000) * customerOutputRate;
   const marginMultiplier = providerCostUsd > 0 ? chargedUsd / providerCostUsd : 0;
-
-  return {
-    providerCostUsd,
-    marginMultiplier,
-    chargedUsd,
-    chargedCredits: chargedUsd * CREDITS_PER_USD
-  };
+  return { providerCostUsd, marginMultiplier, chargedUsd, chargedCredits: chargedUsd * CREDITS_PER_USD };
 }
-
 export function calculateImageCost(providerPricing, customerPricing) {
   if (providerPricing?.image_cost_usd == null) {
     throw serviceError('pricing_not_configured', 'Provider image cost is not configured.', 503);
@@ -132,6 +130,7 @@ function positiveReservation(value) {
 export function createAiService({
   provider,
   creditsService,
+  usdWalletRepository,
   modelCatalog = [],
   providerModelCatalog = {}
 }) {
@@ -193,6 +192,8 @@ export function createAiService({
           provider: provider.id,
           providerModel,
           inputTokens: result.inputTokens || 0,
+          cachedInputTokens: result.cachedInputTokens || 0,
+          cacheWriteInputTokens: result.cacheWriteInputTokens || 0,
           outputTokens: result.outputTokens || 0,
           requestId: req.requestId
         });
@@ -205,11 +206,14 @@ export function createAiService({
       }
     }
 
-    const reservation = await creditsService.reserve({
+    if (!usdWalletRepository) {
+      throw serviceError('billing_unavailable', 'USD wallet billing is not configured.', 503);
+    }
+    const reservation = await usdWalletRepository.reserve({
       workspaceId: req.auth.workspaceId,
       apiKeyId: req.auth.apiKeyId,
       requestId: req.requestId,
-      credits: positiveReservation(reservationCredits),
+      amountUsd: positiveReservation(reservationCredits),
       metadata: { service, publicModel }
     });
 
@@ -217,34 +221,37 @@ export function createAiService({
       const result = await execute();
       const charge = getActualCharge(result);
 
-      if (charge.chargedCredits > Number(reservation.reserved_credits) + 0.000001) {
-        throw serviceError('billing_reservation_exceeded', 'Actual usage exceeded the reserved credit amount.', 503);
+      if (charge.chargedUsd > Number(reservation.reserved_usd) + 0.00000001) {
+        throw serviceError('billing_reservation_exceeded', 'Actual usage exceeded the reserved USD amount.', 503);
       }
 
-      await creditsService.settle({
+      await usdWalletRepository.settle({
         reservationId: reservation.id,
         workspaceId: req.auth.workspaceId,
-        apiKeyId: req.auth.apiKeyId,
-        requestId: req.requestId,
-        service,
-        publicModel,
-        provider: provider.id,
-        providerModel,
-        inputTokens: result.inputTokens || 0,
-        outputTokens: result.outputTokens || 0,
-        providerCostUsd: charge.providerCostUsd,
-        marginMultiplier: charge.marginMultiplier,
         chargedUsd: charge.chargedUsd,
-        chargedCredits: charge.chargedCredits
+        metadata: {
+          apiKeyId: req.auth.apiKeyId,
+          requestId: req.requestId,
+          service,
+          publicModel,
+          provider: provider.id,
+          providerModel,
+          inputTokens: result.inputTokens || 0,
+          cachedInputTokens: result.cachedInputTokens || 0,
+          cacheWriteInputTokens: result.cacheWriteInputTokens || 0,
+          outputTokens: result.outputTokens || 0,
+          providerCostUsd: charge.providerCostUsd,
+          marginMultiplier: charge.marginMultiplier
+        }
       });
 
       return buildResponse(result, charge);
     } catch (error) {
       try {
-        await creditsService.failReservation({
+        await usdWalletRepository.release({
           reservationId: reservation.id,
           workspaceId: req.auth.workspaceId,
-          reason: error.code || 'provider_error'
+          metadata: { reason: error.code || 'provider_error' }
         });
       } catch {
         // Keep the original provider/billing error as the API result.
@@ -274,7 +281,7 @@ export function createAiService({
         estimateInputTokens(JSON.stringify(input.messages)) * RESERVATION_INPUT_SAFETY_FACTOR
       );
       const reservationCharge = pricing
-        ? calculateTokenCost(estimatedInput, effectiveMaxOutput, pricing.providerPricing, pricing.customerPricing).chargedCredits
+        ? calculateTokenCost(estimatedInput, effectiveMaxOutput, pricing.providerPricing, pricing.customerPricing).chargedUsd
         : 0;
 
       return executeWithBilling(req, {
@@ -287,13 +294,16 @@ export function createAiService({
           model: providerModel,
           max_output_tokens: effectiveMaxOutput
         }),
-        getActualCharge: (result) => calculateTokenCost(result.inputTokens, result.outputTokens, pricing.providerPricing, pricing.customerPricing),
+        getActualCharge: (result) => calculateTokenCost(result.inputTokens, result.outputTokens, pricing.providerPricing, pricing.customerPricing, result.cachedInputTokens || 0, result.cacheWriteInputTokens || 0),
         buildResponse: (result, charge) => ({
           service: 'chat',
           model: publicModel,
           usage: {
-            credits: charge.chargedCredits,
+            charged_usd: charge.chargedUsd,
+            currency: 'USD',
             input_tokens: result.inputTokens,
+            cached_input_tokens: result.cachedInputTokens || 0,
+            cache_write_input_tokens: result.cacheWriteInputTokens || 0,
             output_tokens: result.outputTokens,
             total_tokens: (result.inputTokens || 0) + (result.outputTokens || 0)
           },
@@ -318,7 +328,7 @@ export function createAiService({
         estimateInputTokens(input.prompt) * RESERVATION_INPUT_SAFETY_FACTOR
       );
       const reservationCharge = pricing
-        ? calculateTokenCost(estimatedInput, effectiveMaxOutput, pricing.providerPricing, pricing.customerPricing).chargedCredits
+        ? calculateTokenCost(estimatedInput, effectiveMaxOutput, pricing.providerPricing, pricing.customerPricing).chargedUsd
         : 0;
 
       return executeWithBilling(req, {
@@ -331,13 +341,23 @@ export function createAiService({
           model: providerModel,
           max_output_tokens: effectiveMaxOutput
         }),
-        getActualCharge: (result) => calculateTokenCost(result.inputTokens, result.outputTokens, pricing.providerPricing, pricing.customerPricing),
+        getActualCharge: (result) => calculateTokenCost(
+          result.inputTokens,
+          result.outputTokens,
+          pricing.providerPricing,
+          pricing.customerPricing,
+          result.cachedInputTokens || 0,
+          result.cacheWriteInputTokens || 0
+        ),
         buildResponse: (result, charge) => ({
           service: 'coding',
           model: publicModel,
           usage: {
-            credits: charge.chargedCredits,
+            charged_usd: charge.chargedUsd,
+            currency: 'USD',
             input_tokens: result.inputTokens,
+            cached_input_tokens: result.cachedInputTokens || 0,
+            cache_write_input_tokens: result.cacheWriteInputTokens || 0,
             output_tokens: result.outputTokens,
             total_tokens: (result.inputTokens || 0) + (result.outputTokens || 0)
           },
@@ -357,7 +377,7 @@ export function createAiService({
       const { publicModel, providerModel } = resolveModel('image', input.model);
       const pricing = await getPricing(providerModel, publicModel, 'image');
       const reservationCharge = pricing
-        ? calculateImageCost(pricing.providerPricing, pricing.customerPricing).chargedCredits
+        ? calculateImageCost(pricing.providerPricing, pricing.customerPricing).chargedUsd
         : 0;
 
       return executeWithBilling(req, {
@@ -370,7 +390,7 @@ export function createAiService({
         buildResponse: (result, charge) => ({
           service: 'image',
           model: publicModel,
-          usage: { credits: charge.chargedCredits },
+          usage: { charged_usd: charge.chargedUsd, currency: 'USD' },
           data: { images: result.images }
         })
       });

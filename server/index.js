@@ -9,6 +9,7 @@ import createDashboardRouter from './routes/dashboard.js';
 import createProjectsRouter from './routes/projects.js';
 import { requireDeveloperSession } from './middleware/developer-session.js';
 import { createProjectsRepository } from './db/repositories/projects.js';
+import { createUsdWalletRepository } from './db/repositories/usd-wallet.js';
 import { createDbPool } from './db/client.js';
 import { createDevelopersRepository } from './db/repositories/developers.js';
 import { createSessionsRepository } from './db/repositories/sessions.js';
@@ -21,6 +22,7 @@ import { createCreditsService } from './services/credits-service.js';
 import { createBillingService } from './services/billing-service.js';
 import { createAiService } from './services/ai-service.js';
 import { createProvider } from './providers/index.js';
+import { modelCatalog, aiServiceModelCatalog, providerModelCatalog as textProviderModelCatalog } from './config/model-catalog.js';
 import createApiKeysRouter from './routes/api-keys.js';
 import createBillingRouter from './routes/billing.js';
 import { createZopayoProvider } from './payments/zopayo.js';
@@ -88,6 +90,7 @@ const repositories = db ? {
   sessions: createSessionsRepository(db),
   apiKeys: createApiKeyRepository(db),
   credits: createCreditsRepository(db),
+  usdWallet: createUsdWalletRepository(db),
   usage: createUsageRepository(db),
   pricing: createPricingRepository(db),
   billing: createBillingRepository(db),
@@ -134,17 +137,9 @@ app.use('/api/billing', createBillingRouter({
   zopayoWebhookSecret: config.zopayoWebhookSecret
 }));
 
-const modelCatalog = [
-  { id: '4n-chat', service: 'chat', status: 'active' },
-  { id: '4n-code', service: 'coding', status: 'active' },
-  { id: '4n-image', service: 'image', status: 'active' }
-];
-
 const providerModelCatalog = {
-  '4n-chat': config.providerChatModel,
-  '4n-code': config.providerCodingModel,
-  '4n-image': config.providerImageModel,
-  '4n-builder': config.providerBuilderModel
+  ...textProviderModelCatalog,
+  '4n-image': config.providerImageModel
 };
 
 const provider = createProvider(config);
@@ -153,7 +148,8 @@ const aiService = provider && creditsService
   ? createAiService({
       provider,
       creditsService,
-      modelCatalog,
+      usdWalletRepository: repositories?.usdWallet,
+      modelCatalog: aiServiceModelCatalog,
       providerModelCatalog
     })
   : null;

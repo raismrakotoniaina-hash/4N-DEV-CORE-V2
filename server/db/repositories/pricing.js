@@ -6,7 +6,7 @@ export function createPricingRepository(db) {
       const result = await db.query(
         `SELECT
            id, provider, provider_model, service,
-           input_cost_per_1m_usd, output_cost_per_1m_usd,
+           input_cost_per_1m_usd, cached_input_cost_per_1m_usd, cache_write_cost_per_1m_usd, output_cost_per_1m_usd,
            image_cost_usd, margin_multiplier,
            effective_from, effective_to, status
          FROM provider_pricing
@@ -27,7 +27,7 @@ export function createPricingRepository(db) {
       const result = await db.query(
         `SELECT
            id, public_model, service,
-           input_price_per_1m_usd, output_price_per_1m_usd,
+           input_price_per_1m_usd, cached_input_price_per_1m_usd, cache_write_price_per_1m_usd, output_price_per_1m_usd,
            image_price_usd, effective_from, effective_to, status
          FROM customer_model_pricing
          WHERE public_model = $1 AND service = $2

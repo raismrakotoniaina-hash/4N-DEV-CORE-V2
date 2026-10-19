@@ -12,6 +12,23 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: core_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d core_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/core_test
+      DB_SSL: "false"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -23,7 +40,9 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Build frontend
         run: npm run build
-      - name: Run billing unit tests
+      - name: Validate all PostgreSQL migrations on a clean database
+        run: npm run db:migrate
+      - name: Run billing and PostgreSQL integration tests
         run: npm test
       - name: Check backend JavaScript syntax
         run: |
