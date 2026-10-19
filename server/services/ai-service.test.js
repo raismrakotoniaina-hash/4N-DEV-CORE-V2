@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { calculateImageCost, calculateTokenCost, createAiService } from './ai-service.js';
+import { modelCatalog, aiServiceModelCatalog, providerModelCatalog } from '../config/model-catalog.js';
 
 const providerPricing = {
   input_cost_per_1m_usd: '0.20',
@@ -165,4 +166,31 @@ test('coding settlement includes cached input tokens in its actual token charge'
   assert.equal(settled.inputTokens, 8);
   assert.equal(settled.outputTokens, 4);
   assert.ok(settled.chargedUsd > 0);
+});
+
+
+test('public model catalog exposes exactly the four requested 4N model IDs', () => {
+  assert.deepEqual(modelCatalog.map((model) => model.id), [
+    '4n-chat-naya-5.6',
+    '4n-chat-naya-6',
+    '4n-code-nael-5.6',
+    '4n-code-nael-6.1'
+  ]);
+  assert.equal(modelCatalog.length, 4);
+  assert.deepEqual(modelCatalog.map((model) => model.service), ['chat', 'chat', 'coding', 'coding']);
+});
+
+test('public IDs route to the four verified provider model IDs', () => {
+  assert.deepEqual(providerModelCatalog, {
+    '4n-chat-naya-5.6': 'gpt-5.6-luna',
+    '4n-chat-naya-6': 'gpt-6-luna',
+    '4n-code-nael-5.6': 'gpt-5.6-sol',
+    '4n-code-nael-6.1': 'gpt-6.1-sol'
+  });
+});
+
+test('image model remains available internally but is not a fifth public text model', () => {
+  assert.equal(aiServiceModelCatalog.length, 5);
+  assert.equal(aiServiceModelCatalog.at(-1).id, '4n-image');
+  assert.equal(modelCatalog.some((model) => model.id === '4n-image'), false);
 });
