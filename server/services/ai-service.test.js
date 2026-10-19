@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { calculateImageCost, calculateTokenCost } from './ai-service.js';
+import { calculateImageCost, calculateTokenCost, createAiService } from './ai-service.js';
 import { modelCatalog, aiServiceModelCatalog, providerModelCatalog } from '../config/model-catalog.js';
 
 const providerPricing = {
@@ -153,4 +153,43 @@ test('cached-read plus cache-write tokens cannot exceed input tokens', () => {
       { ...customerPricing, cache_write_price_per_1m_usd: '0.625' }, 6, 5),
     (error) => error.code === 'invalid_usage'
   );
+});
+
+test('USD wallet settlement metadata preserves cached-read and cache-write token counts', async () => {
+  let settled;
+  const provider = {
+    id: 'openai',
+    async coding() {
+      return { model: 'gpt-5.6-sol', output: 'ok', language: 'javascript', inputTokens: 8, cachedInputTokens: 3, cacheWriteInputTokens: 2, outputTokens: 4 };
+    }
+  };
+  const creditsService = {
+    async getPricing() {
+      return { input_cost_per_1m_usd: '4', cached_input_cost_per_1m_usd: '0.4', cache_write_cost_per_1m_usd: '5', output_cost_per_1m_usd: '20' };
+    },
+    async getCustomerPricing() {
+      return { input_price_per_1m_usd: '10', cached_input_price_per_1m_usd: '1', cache_write_price_per_1m_usd: '12.5', output_price_per_1m_usd: '50' };
+    }
+  };
+  const usdWalletRepository = {
+    async reserve({ amountUsd }) { return { id: 'reservation-1', reserved_usd: Math.max(amountUsd, 1) }; },
+    async settle(details) { settled = details; },
+    async release() { throw new Error('unexpected release'); }
+  };
+  const ai = createAiService({
+    provider,
+    creditsService,
+    usdWalletRepository,
+    modelCatalog: [{ id: '4n-code-nael-5.6', service: 'coding', status: 'active' }],
+    providerModelCatalog: { '4n-code-nael-5.6': 'gpt-5.6-sol' }
+  });
+  await ai.coding(
+    { auth: { workspaceId: 'workspace-1', apiKeyId: 'key-1' }, requestId: 'request-1' },
+    { model: '4n-code-nael-5.6', prompt: 'write a tiny function', max_output_tokens: 4 }
+  );
+  assert.equal(settled.metadata.cachedInputTokens, 3);
+  assert.equal(settled.metadata.cacheWriteInputTokens, 2);
+  assert.equal(settled.metadata.inputTokens, 8);
+  assert.equal(settled.metadata.outputTokens, 4);
+  assert.ok(settled.chargedUsd > 0);
 });
