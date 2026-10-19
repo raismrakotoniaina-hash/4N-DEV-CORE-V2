@@ -37,7 +37,7 @@ VALUES
   ('openai', 'gpt-5.6-luna', 'chat',    0.20, 0.02,  0.25,  1.20, NULL, 1.6667, now(), 'active'),
   ('openai', 'gpt-6-luna',   'chat',    0.10, 0.01,  0.125, 0.50, NULL, 1.6667, now(), 'active'),
   ('openai', 'gpt-5.6-sol',  'coding',  4.00, 0.40,  5.00, 20.00, NULL, 1.6667, now(), 'active'),
-  ('openai', 'gpt-6.1-sol',  'coding',  2.00, 0.05,  2.50, 10.00, NULL, 1.6667, now(), 'active');
+  ('openai', 'gpt-6.1-sol',  'coding',  2.00, 0.10,  2.50, 10.00, NULL, 1.6667, now(), 'active');
 
 -- Retire generic IDs, temporary aliases and existing versions of canonical IDs.
 -- Existing rows remain available for audit/history.
@@ -69,6 +69,6 @@ VALUES
   ('4n-chat-naya-5.6', 'chat',   0.50, 0.05,  0.625,  3.00, NULL, now(), 'active', 'Luna 5.6; retains existing Chat input/output tariffs.'),
   ('4n-chat-naya-6',   'chat',   0.50, 0.025, 0.3125, 3.00, NULL, now(), 'active', 'Luna 6; retains existing Chat input/output tariffs.'),
   ('4n-code-nael-5.6', 'coding', 10.00, 1.00, 12.50, 50.00, NULL, now(), 'active', 'Sol 5.6; retains existing Coding input/output tariffs.'),
-  ('4n-code-nael-6.1', 'coding', 10.00, 0.125, 6.25, 50.00, NULL, now(), 'active', 'Sol 6.1; retains existing Coding input/output tariffs.');
+  ('4n-code-nael-6.1', 'coding', 10.00, 0.250, 6.25, 50.00, NULL, now(), 'active', 'Sol 6.1; retains existing Coding input/output tariffs.');
 
 COMMIT;
