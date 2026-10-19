@@ -1,0 +1,20 @@
+// Canonical public model IDs for the four requested Luna/Sol models.
+export const modelCatalog = Object.freeze([
+  Object.freeze({ id: '4n-chat-naya-5.6', name: 'Luna 5.6', service: 'chat', provider: 'openai', status: 'active' }),
+  Object.freeze({ id: '4n-chat-naya-6', name: 'Luna 6', service: 'chat', provider: 'openai', status: 'active' }),
+  Object.freeze({ id: '4n-code-nael-5.6', name: 'Sol 5.6', service: 'coding', provider: 'openai', status: 'active' }),
+  Object.freeze({ id: '4n-code-nael-6.1', name: 'Sol 6.1', service: 'coding', provider: 'openai', status: 'active' })
+]);
+
+// Image generation remains available internally but is not a fifth public text model.
+export const aiServiceModelCatalog = Object.freeze([
+  ...modelCatalog,
+  Object.freeze({ id: '4n-image', name: '4N Image', service: 'image', status: 'active' })
+]);
+
+export const providerModelCatalog = Object.freeze({
+  '4n-chat-naya-5.6': 'gpt-5.6-luna',
+  '4n-chat-naya-6': 'gpt-6-luna',
+  '4n-code-nael-5.6': 'gpt-5.6-sol',
+  '4n-code-nael-6.1': 'gpt-6.1-sol'
+});
